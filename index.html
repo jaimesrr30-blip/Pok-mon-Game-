@@ -137,10 +137,11 @@ html,body{margin:0;padding:0;height:100%;background:var(--bg);color:var(--text);
 .hplabel{font-size:10px;color:var(--textdim);margin-top:2px;text-align:right;}
 
 #battleMenu{background:linear-gradient(180deg,#141a29,#0d1119);border-top:1px solid var(--border);
-  padding:10px 14px;display:flex;gap:10px;flex-shrink:0;min-height:150px;}
+  padding:10px 14px;display:flex;gap:10px;flex-shrink:0;min-height:150px;max-height:44vh;}
 #battleLog{flex:1;background:var(--panel2);border:1px solid var(--border);border-radius:10px;padding:10px 12px;
   font-size:13px;line-height:1.5;overflow-y:auto;}
-#battleActions{width:290px;display:grid;grid-template-columns:1fr 1fr;gap:8px;flex-shrink:0;}
+#battleActions{width:290px;display:grid;grid-template-columns:1fr 1fr;gap:7px;flex-shrink:0;overflow-y:auto;
+  align-content:start;padding-right:2px;}
 .actbtn{background:var(--panel2);border:1px solid var(--border);border-radius:10px;color:var(--text);
   font-weight:700;font-size:13px;cursor:pointer;display:flex;flex-direction:column;align-items:center;
   justify-content:center;gap:2px;transition:.12s;}
@@ -452,20 +453,32 @@ const WORLD_SIZE = 42;
 /* =====================================================================
    SPECIES
    ===================================================================== */
-const TYPE_MOVEPOOL = {
-  normal:['placaje','golpe','embiste'], planta:['latigazo','hojasAfiladas'], fuego:['ascuas','llamarada'],
-  hielo:['rayoHelado','ventisca'], electrico:['chispazo','trueno'], tierra:['lanzarocas','terremoto'],
-  viento:['rafaga','tornado'], veneno:['picotazoToxico','vomitoAcido'], oscuro:['golpeSombrio','ondaOscura','furiaAbismal'],
-  cristal:['rayoCristal','confusion'], agua:['chorroAgua','hidrobomba'], volador:['vuelo'],
-  cosmico:['rayoCosmico','novaEstelar'], feerico:['encanto']
+const TYPE_MOVES = {
+  normal:   { basic:'golpe',        special:'embiste' },
+  planta:   { basic:'latigazo',     special:'hojasAfiladas' },
+  fuego:    { basic:'ascuas',       special:'llamarada' },
+  hielo:    { basic:'rayoHelado',   special:'ventisca' },
+  electrico:{ basic:'chispazo',     special:'trueno' },
+  tierra:   { basic:'lanzarocas',   special:'terremoto' },
+  viento:   { basic:'rafaga',       special:'tornado' },
+  veneno:   { basic:'picotazoToxico',special:'vomitoAcido' },
+  oscuro:   { basic:'golpeSombrio', special:'furiaAbismal' },
+  cristal:  { basic:'confusion',    special:'rayoCristal' },
+  agua:     { basic:'chorroAgua',   special:'hidrobomba' },
+  volador:  { basic:'vuelo',        special:'vuelo' },
+  cosmico:  { basic:'rayoCosmico',  special:'novaEstelar' },
+  feerico:  { basic:'encanto',      special:'encanto' },
 };
-function buildLearnset(types){
-  let pool = ['placaje'];
-  pool = pool.concat(TYPE_MOVEPOOL[types[0]]||[]);
-  if(types[1]) pool = pool.concat(TYPE_MOVEPOOL[types[1]]||[]);
-  pool = [...new Set(pool)].slice(0,4);
-  const levels = [1,1,12,26];
-  return pool.map((m,i)=>({ move:m, level:levels[i]||1 }));
+/* Every creature gets exactly 3 always-available attacks (moves) plus one
+   charge-gated special ability (needs 3 charges, built up 1-per-turn free). */
+function buildMoveset(types){
+  const t1 = TYPE_MOVES[types[0]] || TYPE_MOVES.normal;
+  const t2 = types[1] ? TYPE_MOVES[types[1]] : null;
+  let moves = ['placaje', t1.basic];
+  if(t2 && !moves.includes(t2.basic)) moves.push(t2.basic);
+  for(const filler of ['golpe','embiste']){ if(moves.length>=3) break; if(!moves.includes(filler)) moves.push(filler); }
+  moves = [...new Set(moves)].slice(0,3);
+  return { moves, special: t1.special };
 }
 function autoPattern(id, types){
   if(types.includes('cristal')) return 'facetas';
@@ -497,7 +510,7 @@ function S(id,name,worldIdx,rarity,types,color,opts){
     pattern: opts.pattern || autoPattern(id,types),
     isBoss: !!opts.isBoss, isSpecial:!!opts.isSpecial, minWorldIdx: opts.minWorldIdx,
     desc: opts.desc || (`${name}. `+RARITY_FLAVOR[rarity]),
-    learnset: buildLearnset(types),
+    ...buildMoveset(types),
     sizeMod: opts.sizeMod || (opts.isBoss?2.3:1.0),
   };
   SPECIES.push(sp);
@@ -635,6 +648,8 @@ WORLDS.forEach((w,i)=>{
     lines:['Este mundo esconde criaturas fascinantes. ¿Te atreves a explorarlo?','Cuentan leyendas sobre un guardián muy poderoso en esta zona...'] });
   NPCS.push({ id:'lore_'+w.key, worldIdx:i, role:'lore', name:'Anciano de '+w.name,
     lines:['Hace mucho tiempo, los cubos originales dieron forma a estos mundos.','Cada mundo guarda una llave. Sin derrotar a su guardián, no hay paso posible.'] });
+  NPCS.push({ id:'hospital_'+w.key, worldIdx:i, role:'hospital', name:'Hospital de '+w.name,
+    lines:['Bienvenido al hospital. Cuidamos de las criaturas heridas sin coste alguno.','Descansa tranquilo, vamos a curar a todo tu equipo ahora mismo.'] });
 });
 
 function generateWorldQuests(idx){
@@ -874,15 +889,16 @@ function generateWorld(idx){
   const npcsHere = NPCS.filter(n=>n.worldIdx===idx);
   const npcPositions = [
     { npc:npcsHere[0], x:(townX0+2)*TILE+16, y:(townY0+1)*TILE+16 },
-    { npc:npcsHere[1], x:(townX1-2)*TILE+16, y:(townY0+2)*TILE+16 },
-    { npc:npcsHere[2], x:Math.floor(N/2)*TILE+16, y:(townY1-1)*TILE+16 },
+    { npc:npcsHere[1], x:(townX1-2)*TILE+16, y:(townY0+1)*TILE+16 },
+    { npc:npcsHere[2], x:(townX0+2)*TILE+16, y:(townY1-1)*TILE+16 },
+    { npc:npcsHere[3], x:(townX1-2)*TILE+16, y:(townY1-1)*TILE+16 },
   ];
 
   const portal = { x:Math.floor(N/2)*TILE+16, y:(townY1)*TILE+16, toWorld: idx+1<WORLDS.length?idx+1:null };
   const bossArena = { x:bossX*TILE+16, y:bossY*TILE+16 };
 
   const data = { idx, N, tiles, decor, blocked, anchors, npcPositions, portal, bossArena,
-    pxW:N*TILE, pxH:N*TILE, spawnPoint:{x:Math.floor(N/2)*TILE+16, y:(townY1-2)*TILE+16} };
+    pxW:N*TILE, pxH:N*TILE, spawnPoint:{x:Math.floor(N/2)*TILE+16, y:(townY0+2)*TILE+16} };
   WORLD_CACHE[idx] = data;
   return data;
 }
@@ -1025,7 +1041,7 @@ function drawDecor(ctx, type, sx, sy, ring){
    CREATURE INSTANCES
    ===================================================================== */
 function knownMoves(level, species){
-  return species.learnset.filter(l=>l.level<=level).map(l=>l.move).slice(-4);
+  return species.moves;
 }
 function computeStats(speciesId, level){
   const sp = SPECIES_BY_ID[speciesId];
@@ -1330,8 +1346,9 @@ function renderExplore(){
     if(!np.npc) continue;
     drawables.push({ y:np.y, draw:()=>{
       const [sx,sy]=worldToScreen(np.x,np.y);
-      const col = np.npc.role==='shop'?'#ffcf5c':np.npc.role==='quest'?'#5ee68a':'#8fd8ff';
-      drawCube(ctx,sx,sy,30,col,'solido','pococomun',{});
+      const col = np.npc.role==='shop'?'#ffcf5c':np.npc.role==='quest'?'#5ee68a':np.npc.role==='hospital'?'#ff6b6b':'#8fd8ff';
+      const pat = np.npc.role==='hospital'?'anillo':'solido';
+      drawCube(ctx,sx,sy,30,col,pat,'pococomun',{});
       ctx.fillStyle='rgba(10,14,24,.75)'; ctx.font='10px sans-serif'; ctx.textAlign='center';
       const tw = ctx.measureText(np.npc.name).width;
       ctx.fillRect(sx-tw/2-4,sy-32,tw+8,14);
@@ -1436,7 +1453,7 @@ function startBattle(cfg){
     status:null, statusTurns:0 };
   const pIdx = firstAlivePartyIdx();
   ensureEncy(cfg.speciesId).seen = true;
-  Game.battle = { enemy, playerIdx:pIdx, state:'menu', log:[], fleeTries:0,
+  Game.battle = { enemy, playerIdx:pIdx, state:'menu', log:[], fleeTries:0, playerCharge:0, enemyCharge:0,
     playerAnim:{shake:0,lunge:0,flash:0,faintT:0}, enemyAnim:{shake:0,lunge:0,flash:0,faintT:0} };
   document.getElementById('battleScreen').classList.add('show');
   Game.mode='battle';
@@ -1458,12 +1475,18 @@ function logMsg(t){
   el.scrollTop = el.scrollHeight;
 }
 function hpBarClass(hp,max){ const r=hp/max; return r>0.5?'':r>0.2?'mid':'low'; }
+function chargeDots(n){
+  let s = '<div style="display:flex;gap:3px;margin-top:4px;">';
+  for(let i=0;i<3;i++) s += `<div style="width:8px;height:8px;border-radius:50%;background:${i<n?'var(--accent2)':'#333c52'};box-shadow:${i<n?'0 0 6px #ffcf5c99':'none'};"></div>`;
+  s += '</div>';
+  return s;
+}
 function renderBattleHud(){
   const b = Game.battle; const eh=document.getElementById('enemyHud'), ph=document.getElementById('playerHud');
   const esp = SPECIES_BY_ID[b.enemy.speciesId];
   eh.innerHTML = `<div class="nmrow"><span>${nameOf(b.enemy.speciesId)}${b.isBoss?' 👑':''}</span><span>Nv.${b.enemy.level}</span></div>
     <div class="hpouter"><div class="hpinner ${hpBarClass(b.enemy.hp,b.enemy.maxHp)}" style="width:${clamp(b.enemy.hp/b.enemy.maxHp*100,0,100)}%"></div></div>
-    <div class="hplabel">${Math.max(0,Math.round(b.enemy.hp))}/${b.enemy.maxHp} PS</div>`;
+    <div class="hplabel">${Math.max(0,Math.round(b.enemy.hp))}/${b.enemy.maxHp} PS</div>${chargeDots(b.enemyCharge||0)}`;
   const pc = activeCreature();
   if(!pc){ ph.innerHTML=''; return; }
   const psp = SPECIES_BY_ID[pc.speciesId]; const pst = creatureStats(pc);
@@ -1471,7 +1494,7 @@ function renderBattleHud(){
   ph.innerHTML = `<div class="nmrow"><span>${psp.name}</span><span>Nv.${pc.level}</span></div>
     <div class="hpouter"><div class="hpinner ${hpBarClass(pc.hp,pst.maxHp)}" style="width:${clamp(pc.hp/pst.maxHp*100,0,100)}%"></div></div>
     <div class="hplabel">${Math.max(0,Math.round(pc.hp))}/${pst.maxHp} PS</div>
-    <div class="xpouter"><div class="xpinner" style="width:${clamp(xpNow/xpNeed*100,0,100)}%"></div></div>`;
+    <div class="xpouter"><div class="xpinner" style="width:${clamp(xpNow/xpNeed*100,0,100)}%"></div></div>${chargeDots(b.playerCharge||0)}`;
 }
 function moveButton(moveId, onClick){
   const mv = ATTACKS[moveId];
@@ -1489,22 +1512,25 @@ function actBtn(label,sub,onClick,wide){
 }
 function renderBattleMenu(){
   const wrap = document.getElementById('battleActions'); wrap.innerHTML='';
+  wrap.style.gridTemplateColumns = '1fr 1fr';
   const b = Game.battle;
   if(b.state==='menu'){
-    wrap.appendChild(actBtn('⚔️ Atacar','Movimientos básicos',()=>openMoveMenu('basic')));
-    wrap.appendChild(actBtn('✨ Ataque Especial','Movimientos avanzados',()=>openMoveMenu('special')));
+    const pc = activeCreature(); const sp = SPECIES_BY_ID[pc.speciesId];
+    sp.moves.forEach(m=>wrap.appendChild(moveButton(m, ()=>useMove(m))));
+    const specMv = ATTACKS[sp.special];
+    const charge = b.playerCharge||0;
+    const ready = charge>=3;
+    const specBtn = document.createElement('div');
+    specBtn.className = 'moveBtn'+(ready?' special-ready':'');
+    if(ready) specBtn.style.cssText='border-color:var(--accent2);box-shadow:0 0 12px #ffcf5c55;';
+    specBtn.innerHTML = `<div class="mv-top"><span>✨ ${specMv.name}</span><span>${specMv.power} PWR</span></div>
+      <div class="mv-sub">${ready?'¡Lista para usar! · '+specMv.type.toUpperCase() : 'Carga '+charge+'/3 · se acumula 1 por turno'}</div>`;
+    specBtn.onclick = ()=>{ if(!ready){ Audio_.error(); toast('Necesitas 3 cargas para usar la habilidad especial (ganas 1 gratis cada turno).'); return; } useSpecialMove(); };
+    wrap.appendChild(specBtn);
     wrap.appendChild(actBtn('🧪 Objeto','Curar a tu criatura',()=>openItemMenu()));
     wrap.appendChild(actBtn('🎒 Mochila','Cambiar de criatura',()=>openSwitchMenu()));
     wrap.appendChild(actBtn(b.enemy.isBoss?'🔴 Capturar (bloqueado)':'🔴 Capturar','Usar una esfera',()=>openCaptureMenu(), false));
     wrap.appendChild(actBtn(b.enemy.isBoss?'🏃 Huir (bloqueado)':'🏃 Huir','Escapar del combate',()=>attemptFlee()));
-  } else if(b.state==='moves'){
-    const pc = activeCreature(); const sp = SPECIES_BY_ID[pc.speciesId];
-    const entries = sp.learnset.filter(l=>l.level<=pc.level);
-    const slice = b.moveTab==='basic'? entries.slice(0,2) : entries.slice(2,4);
-    wrap.style.gridTemplateColumns = '1fr 1fr';
-    if(slice.length===0){ wrap.appendChild(actBtn('Sin movimientos disponibles aún','Sube de nivel para desbloquear',()=>{},true)); }
-    slice.forEach(l=>wrap.appendChild(moveButton(l.move, ()=>useMove(l.move))));
-    wrap.appendChild(actBtn('◀ Volver','',()=>{ b.state='menu'; renderBattleMenu(); }, true));
   } else if(b.state==='items'){
     POTION_IDS.forEach(id=>{
       const qty = itemCount(id);
@@ -1522,18 +1548,33 @@ function renderBattleMenu(){
     SPHERE_IDS.forEach(id=>{
       const qty = itemCount(id);
       const pct = captureChance(id, b.enemy);
-      const el = actBtn(ITEMS[id].name, `x${qty} · Éxito estimado ${fmtPct(pct)}`, ()=>{ if(qty<=0){ Audio_.error(); toast('No te quedan '+ITEMS[id].name+'.'); return;} attemptCapture(id); });
+      const el = actBtn(ITEMS[id].name, `x${qty} · Captura estimada ${fmtPct(pct)}`, ()=>{ if(qty<=0){ Audio_.error(); toast('No te quedan '+ITEMS[id].name+'.'); return;} openCaptureConfirm(id); });
       wrap.appendChild(el);
     });
     wrap.appendChild(actBtn('◀ Volver','',()=>{ b.state='menu'; renderBattleMenu(); }, true));
+  } else if(b.state==='captureConfirm'){
+    const id = b.pendingSphere; const it = ITEMS[id]; const pct = captureChance(id, b.enemy);
+    wrap.style.gridTemplateColumns = '1fr';
+    const info = document.createElement('div');
+    info.className = 'actbtn wide';
+    info.style.cssText = 'cursor:default;flex-direction:column;padding:14px;';
+    const col = pct>0.6?'var(--good)':pct>0.3?'var(--accent2)':'var(--danger)';
+    info.innerHTML = `<div style="font-size:14px;">${it.name} contra ${nameOf(b.enemy.speciesId)}</div>
+      <div style="font-size:32px;font-weight:800;color:${col};margin:6px 0;">${fmtPct(pct)}</div>
+      <div class="sub">Probabilidad de captura (vida restante, rareza, nivel y calidad de esfera)</div>`;
+    wrap.appendChild(info);
+    wrap.appendChild(actBtn('🎯 Lanzar esfera','¡Inténtalo!',()=>attemptCapture(id), true));
+    wrap.appendChild(actBtn('◀ Cancelar','',()=>{ b.state='capture'; renderBattleMenu(); }, true));
   }
 }
-function openMoveMenu(tab){ if(Game.battle.enemy.hp<=0) return; Game.battle.state='moves'; Game.battle.moveTab=tab; renderBattleMenu(); }
 function openItemMenu(){ Game.battle.state='items'; renderBattleMenu(); }
 function openSwitchMenu(){ Game.battle.state='switch'; renderBattleMenu(); }
 function openCaptureMenu(){
   if(Game.battle.enemy.isBoss){ toast('🚫 No se puede capturar a un guardián.'); Audio_.error(); return; }
   Game.battle.state='capture'; renderBattleMenu();
+}
+function openCaptureConfirm(id){
+  Game.battle.pendingSphere = id; Game.battle.state='captureConfirm'; renderBattleMenu();
 }
 function setLock(v){ Game.battleLocked = v; document.getElementById('battleActions').style.pointerEvents = v?'none':'auto'; document.getElementById('battleActions').style.opacity = v?'0.55':'1'; }
 
@@ -1542,6 +1583,14 @@ function useMove(moveId){
   Game.battle.state='menu';
   setLock(true);
   runPlayerAction(()=>doAttack('player',moveId), ()=>{ if(!checkBattleEnd()) enemyTurn(); });
+}
+function useSpecialMove(){
+  if(Game.battleLocked) return;
+  if((Game.battle.playerCharge||0)<3) return;
+  const pc = activeCreature(); const sp = SPECIES_BY_ID[pc.speciesId];
+  Game.battle.state='menu';
+  setLock(true);
+  runPlayerAction(()=>doAttack('player',sp.special,{isSpecial:true}), ()=>{ if(!checkBattleEnd()) enemyTurn(); });
 }
 function useItemInBattle(id){
   if(Game.battleLocked) return;
@@ -1564,6 +1613,7 @@ function useItemInBattle(id){
     logMsg(`Usas ${item.name}. El estado alterado desaparece.`);
     Audio_.heal();
   }
+  gainOrSpendCharge('player', false);
   renderBattleHud();
   setTimeout(()=>{ if(!checkBattleEnd()) enemyTurn(); }, 500);
 }
@@ -1579,6 +1629,7 @@ function attemptFlee(){
     setTimeout(()=>closeBattle(false),650);
   } else {
     logMsg('No has podido escapar...'); Audio_.cancel();
+    gainOrSpendCharge('player', false);
     setTimeout(()=>{ if(!checkBattleEnd()) enemyTurn(); }, 500);
   }
 }
@@ -1605,10 +1656,17 @@ function applyStatusEnd(who){
   if(ent.status==='envenenado'){ const d=Math.round(stats.maxHp*0.09); ent.hp=Math.max(0,ent.hp-d); logMsg(`El veneno resta ${d} PS.`); }
   renderBattleHud();
 }
-function doAttack(who, moveId){
+function gainOrSpendCharge(who, isSpecial){
+  const b = Game.battle;
+  if(who==='player') b.playerCharge = isSpecial? 0 : Math.min(3,(b.playerCharge||0)+1);
+  else b.enemyCharge = isSpecial? 0 : Math.min(3,(b.enemyCharge||0)+1);
+}
+function doAttack(who, moveId, opts){
+  opts = opts||{};
   const b = Game.battle;
   const attackerName = who==='player'? SPECIES_BY_ID[activeCreature().speciesId].name : nameOf(b.enemy.speciesId);
-  if(!tickStatusStart(who)){ return; }
+  if(!tickStatusStart(who)){ gainOrSpendCharge(who,false); renderBattleHud(); return; }
+  gainOrSpendCharge(who, opts.isSpecial);
   const move = ATTACKS[moveId];
   const atkAnim = who==='player'? b.playerAnim : b.enemyAnim;
   atkAnim.lunge = 1;
@@ -1646,9 +1704,9 @@ function playSfx(sfxName){ if(Audio_[sfxName]) Audio_[sfxName](); }
 function enemyAttack(cb){
   const b = Game.battle;
   const sp = SPECIES_BY_ID[b.enemy.speciesId];
-  const moves = knownMoves(b.enemy.level, sp);
-  const mv = weightedPick(moves.map(m=>({weight:ATTACKS[m].power, id:m}))).id;
-  doAttack('enemy', mv);
+  const useSpecial = (b.enemyCharge||0)>=3 && Math.random()<0.65;
+  const mv = useSpecial ? sp.special : weightedPick(sp.moves.map(m=>({weight:ATTACKS[m].power, id:m}))).id;
+  doAttack('enemy', mv, {isSpecial:useSpecial});
   applyStatusEnd('enemy');
   setTimeout(cb, 700);
 }
@@ -1917,7 +1975,8 @@ function openCreatureDetail(uid_, source){
   const arr = source==='equipo'?Game.party:Game.box;
   const idx = arr.findIndex(c=>c.uid===uid_); const c = arr[idx]; if(!c) return;
   const sp = SPECIES_BY_ID[c.speciesId]; const st = creatureStats(c);
-  const moves = creatureMoves(c).map(m=>ATTACKS[m].name).join(', ');
+  const moves = sp.moves.map(m=>ATTACKS[m].name).join(', ');
+  const specialName = ATTACKS[sp.special].name;
   const canMoveOut = source==='equipo' ? Game.party.length>1 : Game.party.length<6;
   const btnLabel = source==='equipo' ? 'Enviar al Almacén' : 'Traer al Equipo';
   document.getElementById('panelContent').innerHTML = panelShell(sp.name, `
@@ -1929,7 +1988,8 @@ function openCreatureDetail(uid_, source){
     <div style="font-size:12.5px;line-height:1.8;">
       Nivel: <b>${c.level}</b><br>Vida: <b>${Math.max(0,Math.round(c.hp))}/${st.maxHp}</b><br>
       Ataque: <b>${st.atk}</b> · Defensa: <b>${st.def}</b> · Velocidad: <b>${st.spd}</b><br>
-      Tipo: <b>${sp.types.join(' / ')}</b><br>Movimientos: <b>${moves}</b>
+      Tipo: <b>${sp.types.join(' / ')}</b><br>Movimientos: <b>${moves}</b><br>
+      Habilidad especial (3 cargas): <b>✨ ${specialName}</b>
     </div>
     <div style="display:flex;gap:8px;margin-top:14px;flex-wrap:wrap;">
       <button class="btn secondary" onclick="renderPanel('team')">◀ Volver</button>
@@ -2051,9 +2111,20 @@ function advanceDialogue(){
     const role = Dialogue.npc.role;
     closeDialogue();
     if(role==='shop') openShop();
+    else if(role==='hospital') healPartyFree();
     return;
   }
   renderDialogue();
+}
+function healPartyFree(){
+  let healedAny = false;
+  Game.party.forEach(c=>{
+    const st = creatureStats(c);
+    if(c.hp<st.maxHp || c.status){ healedAny = true; }
+    c.hp = st.maxHp; c.status = null; c.statusTurns = 0;
+  });
+  Audio_.heal(); Audio_.chest();
+  toast(healedAny ? '🏥 Tu equipo ha sido curado gratis. ¡Que sigas tu aventura!' : '🏥 Tu equipo ya estaba sano, pero gracias por la visita.');
 }
 function closeDialogue(){
   document.getElementById('dialogueBox').classList.remove('show');
