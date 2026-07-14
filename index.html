@@ -1,0 +1,2173 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Monster Cube Adventure</title>
+<style>
+:root{
+  --bg:#0b0e17; --panel:#141a29; --panel2:#1b2438; --accent:#5ee6d4; --accent2:#ffcf5c;
+  --text:#e8edf7; --textdim:#8b96b3; --danger:#ff5c6c; --good:#5ee68a; --border:#2a3552;
+}
+*{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+html,body{margin:0;padding:0;height:100%;background:var(--bg);color:var(--text);
+  font-family:'Segoe UI',Verdana,Arial,sans-serif; overflow:hidden; user-select:none;}
+#app{display:flex;flex-direction:column;height:100vh;width:100vw;}
+
+/* ---------- TOPBAR ---------- */
+#topbar{display:flex;align-items:center;gap:8px;padding:8px 12px;background:linear-gradient(180deg,#161d2e,#10141f);
+  border-bottom:1px solid var(--border); flex-shrink:0; z-index:55; position:relative; flex-wrap:wrap; row-gap:6px;}
+#topbar .world-name{font-weight:700;font-size:15px;letter-spacing:.3px;color:var(--accent);white-space:nowrap;}
+#topbar .coins{margin-left:auto;display:flex;align-items:center;gap:6px;background:var(--panel2);
+  padding:5px 12px;border-radius:20px;font-weight:700;font-size:13px;border:1px solid var(--border);}
+#topbar .coins .icon{width:14px;height:14px;border-radius:50%;background:radial-gradient(circle at 30% 30%,#ffe89a,#e6a71a);}
+.topbtn{background:var(--panel2);border:1px solid var(--border);color:var(--text);padding:6px 10px;border-radius:10px;
+  font-size:12px;cursor:pointer;display:flex;align-items:center;gap:5px;transition:.15s;white-space:nowrap;}
+.topbtn:hover{background:#25314f;border-color:var(--accent);}
+.topbtn:active{transform:scale(.95);}
+
+/* ---------- GAME AREA ---------- */
+#gamewrap{position:relative;flex:1;min-height:0;background:#000;overflow:hidden;}
+#game{display:block;width:100%;height:100%;image-rendering:pixelated;}
+
+#interactPrompt{position:absolute;left:50%;bottom:18px;transform:translateX(-50%);
+  background:rgba(10,14,24,.88);border:1px solid var(--accent);padding:8px 16px;border-radius:10px;
+  font-size:13px;pointer-events:none;opacity:0;transition:opacity .15s;z-index:15;text-align:center;}
+#interactPrompt.show{opacity:1;}
+#interactPrompt kbd{background:#2a3552;padding:1px 6px;border-radius:4px;font-weight:700;margin:0 2px;}
+
+#minimap{position:absolute;left:12px;bottom:12px;width:130px;height:130px;border-radius:12px;
+  border:2px solid var(--border);background:rgba(10,14,24,.75);overflow:hidden;z-index:14;}
+#minimap canvas{width:100%;height:100%;}
+
+#rarityPanel{position:absolute;right:12px;bottom:12px;width:210px;background:rgba(10,14,24,.88);
+  border:1px solid var(--border);border-radius:12px;padding:9px 11px;z-index:14;font-size:11px;
+  max-height:220px;overflow-y:auto;}
+#rarityPanel h4{margin:0 0 6px;font-size:11px;color:var(--accent2);letter-spacing:.4px;
+  display:flex;justify-content:space-between;}
+.rarityRow{display:flex;align-items:center;justify-content:space-between;padding:2px 0;gap:6px;}
+.rarityRow .dot{width:8px;height:8px;border-radius:2px;flex-shrink:0;}
+.rarityRow .nm{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--textdim);}
+.rarityRow .pc{font-weight:700;font-variant-numeric:tabular-nums;}
+
+#toastWrap{position:absolute;top:10px;left:50%;transform:translateX(-50%);z-index:40;
+  display:flex;flex-direction:column;gap:6px;align-items:center;pointer-events:none;}
+.toast{background:rgba(15,20,32,.95);border:1px solid var(--accent);padding:7px 16px;border-radius:20px;
+  font-size:12.5px;animation:toastIn .25s ease-out;}
+@keyframes toastIn{from{opacity:0;transform:translateY(-8px);}to{opacity:1;transform:translateY(0);}}
+
+/* ---------- TOUCH CONTROLS ---------- */
+#touchControls{position:absolute;inset:0;pointer-events:none;z-index:16;display:none;}
+#touchControls.active{display:block;}
+.dpad{position:absolute;left:16px;bottom:150px;width:130px;height:130px;pointer-events:auto;}
+.dbtn{position:absolute;width:44px;height:44px;background:rgba(30,40,64,.75);border:1px solid var(--border);
+  border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:18px;color:var(--text);}
+.dbtn.up{left:43px;top:0;} .dbtn.down{left:43px;top:86px;} .dbtn.left{left:0;top:43px;} .dbtn.right{left:86px;top:43px;}
+#actionBtn{position:absolute;right:20px;bottom:170px;width:66px;height:66px;border-radius:50%;
+  background:radial-gradient(circle at 35% 30%,#79f2df,#1f9e8b);border:2px solid #0b0e17;pointer-events:auto;
+  font-weight:800;color:#04231d;font-size:12px;display:flex;align-items:center;justify-content:center;}
+
+/* ---------- MODAL ---------- */
+#modalRoot{position:absolute;inset:0;background:rgba(4,6,12,.72);display:none;align-items:center;justify-content:center;
+  z-index:50;backdrop-filter:blur(2px);}
+#modalRoot.show{display:flex;}
+.panel{background:linear-gradient(160deg,#171f33,#0f1421);border:1px solid var(--border);border-radius:16px;
+  width:min(620px,92vw);max-height:86vh;display:flex;flex-direction:column;box-shadow:0 20px 60px rgba(0,0,0,.5);
+  animation:panelIn .18s ease-out;}
+@keyframes panelIn{from{opacity:0;transform:scale(.96) translateY(6px);}to{opacity:1;transform:none;}}
+.panel-head{display:flex;align-items:center;padding:14px 18px;border-bottom:1px solid var(--border);}
+.panel-head h3{margin:0;font-size:16px;color:var(--accent);}
+.panel-head .x{margin-left:auto;cursor:pointer;background:var(--panel2);border:1px solid var(--border);
+  width:28px;height:28px;border-radius:8px;display:flex;align-items:center;justify-content:center;color:var(--textdim);}
+.panel-body{padding:14px 18px;overflow-y:auto;flex:1;}
+.tabs{display:flex;gap:6px;padding:0 18px;border-bottom:1px solid var(--border);flex-wrap:wrap;}
+.tab{padding:9px 12px;font-size:12px;cursor:pointer;color:var(--textdim);border-bottom:2px solid transparent;}
+.tab.active{color:var(--accent);border-color:var(--accent);}
+
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(84px,1fr));gap:8px;}
+.itemCard{background:var(--panel2);border:1px solid var(--border);border-radius:10px;padding:8px 6px;text-align:center;
+  cursor:pointer;transition:.12s;}
+.itemCard:hover{border-color:var(--accent);transform:translateY(-2px);}
+.itemCard .qty{font-size:10px;color:var(--textdim);}
+.itemCard .nm{font-size:11px;margin-top:2px;line-height:1.2;}
+.itemCard .ic{width:34px;height:34px;margin:0 auto;border-radius:8px;}
+
+.creatureRow{display:flex;align-items:center;gap:10px;background:var(--panel2);border:1px solid var(--border);
+  border-radius:10px;padding:8px 10px;margin-bottom:7px;cursor:pointer;}
+.creatureRow:hover{border-color:var(--accent);}
+.creatureRow .cube{width:38px;height:38px;border-radius:8px;flex-shrink:0;}
+.creatureRow .info{flex:1;min-width:0;}
+.creatureRow .info .top{display:flex;justify-content:space-between;font-size:12.5px;font-weight:700;}
+.hpbar-mini{height:5px;border-radius:3px;background:#0b0e17;overflow:hidden;margin-top:3px;}
+.hpbar-mini i{display:block;height:100%;background:var(--good);}
+.rarityTag{font-size:9px;padding:1px 6px;border-radius:8px;font-weight:700;}
+
+.encyCard{background:var(--panel2);border:1px solid var(--border);border-radius:10px;padding:10px;text-align:center;}
+.encyCard.undiscovered{opacity:.35;}
+.encyCard .cube{width:44px;height:44px;margin:0 auto 6px;border-radius:9px;}
+.encyCard .nm{font-size:11px;font-weight:700;}
+.encyCard .meta{font-size:9.5px;color:var(--textdim);margin-top:2px;}
+
+.questItem{background:var(--panel2);border:1px solid var(--border);border-radius:10px;padding:10px;margin-bottom:8px;}
+.questItem .title{font-weight:700;font-size:13px;}
+.questItem .desc{font-size:11.5px;color:var(--textdim);margin-top:3px;}
+.questItem .prog{font-size:11px;margin-top:5px;color:var(--accent2);}
+.btn{background:var(--accent);color:#04231d;border:none;padding:8px 14px;border-radius:9px;font-weight:800;
+  font-size:12.5px;cursor:pointer;}
+.btn.secondary{background:var(--panel2);color:var(--text);border:1px solid var(--border);}
+.btn.danger{background:var(--danger);color:#2c0508;}
+.btn:disabled{opacity:.4;cursor:not-allowed;}
+
+/* ---------- BATTLE ---------- */
+#battleScreen{position:absolute;inset:0;z-index:30;display:none;flex-direction:column;}
+#battleScreen.show{display:flex;}
+#battleCanvasWrap{flex:1;position:relative;}
+#battleCanvas{width:100%;height:100%;display:block;}
+.battleHud{position:absolute;padding:9px 12px;background:rgba(10,14,24,.85);border:1px solid var(--border);
+  border-radius:12px;width:210px;}
+.battleHud.enemy{top:14px;left:14px;}
+.battleHud.player{bottom:14px;right:14px;}
+.battleHud .nmrow{display:flex;justify-content:space-between;font-size:12.5px;font-weight:700;margin-bottom:5px;}
+.hpouter{height:9px;background:#0b0e17;border-radius:5px;overflow:hidden;border:1px solid var(--border);}
+.hpinner{height:100%;background:linear-gradient(90deg,#5ee68a,#3bb968);transition:width .35s ease;}
+.hpinner.mid{background:linear-gradient(90deg,#ffcf5c,#e6a71a);}
+.hpinner.low{background:linear-gradient(90deg,#ff5c6c,#c22a3a);}
+.xpouter{height:4px;background:#0b0e17;border-radius:3px;overflow:hidden;margin-top:5px;}
+.xpinner{height:100%;background:var(--accent);}
+.hplabel{font-size:10px;color:var(--textdim);margin-top:2px;text-align:right;}
+
+#battleMenu{background:linear-gradient(180deg,#141a29,#0d1119);border-top:1px solid var(--border);
+  padding:10px 14px;display:flex;gap:10px;flex-shrink:0;min-height:150px;}
+#battleLog{flex:1;background:var(--panel2);border:1px solid var(--border);border-radius:10px;padding:10px 12px;
+  font-size:13px;line-height:1.5;overflow-y:auto;}
+#battleActions{width:290px;display:grid;grid-template-columns:1fr 1fr;gap:8px;flex-shrink:0;}
+.actbtn{background:var(--panel2);border:1px solid var(--border);border-radius:10px;color:var(--text);
+  font-weight:700;font-size:13px;cursor:pointer;display:flex;flex-direction:column;align-items:center;
+  justify-content:center;gap:2px;transition:.12s;}
+.actbtn:hover{border-color:var(--accent);background:#232f4c;}
+.actbtn:active{transform:scale(.95);}
+.actbtn .sub{font-size:9.5px;color:var(--textdim);font-weight:400;}
+.actbtn.wide{grid-column:1/3;}
+.moveBtn{background:var(--panel2);border:1px solid var(--border);border-radius:10px;padding:8px;text-align:left;
+  cursor:pointer;}
+.moveBtn:hover{border-color:var(--accent);}
+.moveBtn .mv-top{display:flex;justify-content:space-between;font-size:12.5px;font-weight:700;}
+.moveBtn .mv-sub{font-size:10px;color:var(--textdim);}
+
+/* ---------- DIALOGUE ---------- */
+#dialogueBox{position:absolute;left:50%;bottom:22px;transform:translateX(-50%);width:min(560px,92vw);
+  background:rgba(10,14,24,.94);border:1px solid var(--accent);border-radius:14px;padding:14px 18px;
+  z-index:25;display:none;}
+#dialogueBox.show{display:block;}
+#dialogueBox .who{color:var(--accent2);font-weight:800;font-size:12.5px;margin-bottom:4px;}
+#dialogueBox .txt{font-size:13.5px;line-height:1.5;}
+#dialogueBox .next{margin-top:8px;text-align:right;font-size:11px;color:var(--textdim);}
+
+/* ---------- TITLE ---------- */
+#titleScreen{position:absolute;inset:0;z-index:60;background:radial-gradient(circle at 50% 30%,#1a2340,#05070c 75%);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:22px;}
+#titleScreen h1{font-size:clamp(28px,6vw,46px);margin:0;background:linear-gradient(90deg,#5ee6d4,#ffcf5c);
+  -webkit-background-clip:text;background-clip:text;color:transparent;letter-spacing:1px;text-align:center;}
+#titleScreen .sub{color:var(--textdim);font-size:13px;letter-spacing:2px;text-transform:uppercase;margin-top:-14px;}
+.titleCube{width:70px;height:70px;border-radius:16px;animation:floaty 2.4s ease-in-out infinite;}
+@keyframes floaty{0%,100%{transform:translateY(0) rotate(0deg);}50%{transform:translateY(-14px) rotate(6deg);}}
+.titleBtns{display:flex;flex-direction:column;gap:10px;width:230px;}
+.titleBtns .btn{padding:12px;font-size:14px;}
+
+.colorSwatches{display:flex;gap:10px;flex-wrap:wrap;justify-content:center;margin:6px 0 14px;}
+.swatch{width:32px;height:32px;border-radius:8px;cursor:pointer;border:2px solid transparent;}
+.swatch.sel{border-color:#fff;transform:scale(1.12);}
+
+::-webkit-scrollbar{width:8px;height:8px;}
+::-webkit-scrollbar-thumb{background:#2a3552;border-radius:4px;}
+::-webkit-scrollbar-track{background:transparent;}
+
+@media(max-width:720px){
+  #battleActions{width:180px;grid-template-columns:1fr;}
+  .battleHud{width:150px;font-size:11px;}
+  #rarityPanel{width:150px;}
+}
+@media(max-width:480px){
+  .topbtn{font-size:10.5px;padding:5px 7px;}
+  .topbtn span.lbl{display:none;}
+  #topbar .coins{font-size:11.5px;padding:4px 9px;}
+  .world-name{font-size:12.5px;}
+  #minimap{width:96px;height:96px;left:8px;bottom:8px;}
+  #rarityPanel{width:132px;font-size:9.5px;padding:6px 8px;bottom:8px;max-height:160px;}
+  #rarityPanel h4{font-size:9.5px;}
+  .dpad{bottom:190px;left:10px;transform:scale(.85);transform-origin:bottom left;}
+  #actionBtn{bottom:210px;right:14px;width:58px;height:58px;font-size:10.5px;}
+  #interactPrompt{bottom:196px;font-size:11.5px;padding:6px 12px;max-width:80vw;}
+}
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="topbar">
+    <div class="world-name" id="worldNameLbl">Bosque Esmeralda</div>
+    <button class="topbtn" data-panel="team">🧊 <span class="lbl">Equipo</span></button>
+    <button class="topbtn" data-panel="bag">🎒 <span class="lbl">Mochila</span></button>
+    <button class="topbtn" data-panel="ency">📖 <span class="lbl">Colección</span></button>
+    <button class="topbtn" data-panel="quests">📜 <span class="lbl">Misiones</span></button>
+    <div class="coins"><span class="icon"></span><span id="coinLbl">0</span></div>
+  </div>
+  <div id="gamewrap">
+    <canvas id="game"></canvas>
+    <div id="interactPrompt"></div>
+    <div id="minimap"><canvas id="minimapCanvas"></canvas></div>
+    <div id="rarityPanel"><h4><span>CRIATURAS DEL MUNDO</span></h4><div id="rarityList"></div></div>
+    <div id="toastWrap"></div>
+    <div id="touchControls">
+      <div class="dpad">
+        <div class="dbtn up" data-dir="up">▲</div>
+        <div class="dbtn down" data-dir="down">▼</div>
+        <div class="dbtn left" data-dir="left">◀</div>
+        <div class="dbtn right" data-dir="right">▶</div>
+      </div>
+      <div id="actionBtn">ACCIÓN</div>
+    </div>
+    <div id="dialogueBox">
+      <div class="who" id="dlgWho"></div>
+      <div class="txt" id="dlgTxt"></div>
+      <div class="next">Toca para continuar ▶</div>
+    </div>
+    <div id="battleScreen">
+      <div id="battleCanvasWrap">
+        <canvas id="battleCanvas"></canvas>
+        <div class="battleHud enemy" id="enemyHud"></div>
+        <div class="battleHud player" id="playerHud"></div>
+      </div>
+      <div id="battleMenu">
+        <div id="battleLog"></div>
+        <div id="battleActions"></div>
+      </div>
+    </div>
+  </div>
+  <div id="modalRoot"><div class="panel" id="panelContent"></div></div>
+  <div id="titleScreen"></div>
+</div>
+<script>
+'use strict';
+/* =====================================================================
+   MONSTER CUBE ADVENTURE - core utils & audio
+   ===================================================================== */
+const TILE = 32;
+function rnd(a,b){ return a + Math.random()*(b-a); }
+function rndInt(a,b){ return Math.floor(rnd(a,b+1)); }
+function clamp(v,a,b){ return v<a?a:(v>b?b:v); }
+function lerp(a,b,t){ return a+(b-a)*t; }
+function dist(x1,y1,x2,y2){ return Math.hypot(x2-x1,y2-y1); }
+function choice(arr){ return arr[Math.floor(Math.random()*arr.length)]; }
+function uid(){ return 'id'+Date.now().toString(36)+Math.floor(Math.random()*1e6).toString(36); }
+function hashStr(s){ let h=2166136261; for(let i=0;i<s.length;i++){ h^=s.charCodeAt(i); h=Math.imul(h,16777619); } return (h>>>0); }
+function seededVariance(seedStr, salt, lo, hi){
+  const h = hashStr(seedStr+'::'+salt);
+  const t = (h % 10000)/10000;
+  return lo + t*(hi-lo);
+}
+function mulberry32(seed){
+  return function(){
+    seed |= 0; seed = seed + 0x6D2B79F5 | 0;
+    let t = Math.imul(seed ^ seed >>> 15, 1 | seed);
+    t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+    return ((t ^ t >>> 14) >>> 0) / 4294967296;
+  };
+}
+function weightedPick(entries, rngFn){
+  rngFn = rngFn || Math.random;
+  const total = entries.reduce((s,e)=>s+e.weight,0);
+  let r = rngFn()*total;
+  for(const e of entries){ if(r<e.weight) return e; r-=e.weight; }
+  return entries[entries.length-1];
+}
+function fmtPct(v){ return (v*100).toFixed(v<0.01?2:1)+'%'; }
+function shadeColor(hex, pct){
+  const n = parseInt(hex.slice(1),16);
+  let r=(n>>16)&255, g=(n>>8)&255, b=n&255;
+  r = clamp(Math.round(r+(pct<0?r:255-r)*pct),0,255);
+  g = clamp(Math.round(g+(pct<0?g:255-g)*pct),0,255);
+  b = clamp(Math.round(b+(pct<0?b:255-b)*pct),0,255);
+  return '#'+[r,g,b].map(v=>v.toString(16).padStart(2,'0')).join('');
+}
+
+/* ---------------- AUDIO (procedural, no external files) ---------------- */
+const Audio_ = (()=>{
+  let ctx = null;
+  function ensure(){ if(!ctx){ ctx = new (window.AudioContext||window.webkitAudioContext)(); } if(ctx.state==='suspended') ctx.resume(); return ctx; }
+  function tone(freq, dur, type, vol, glideTo){
+    try{
+      const c = ensure();
+      const o = c.createOscillator(); const g = c.createGain();
+      o.type = type||'sine'; o.frequency.setValueAtTime(freq, c.currentTime);
+      if(glideTo) o.frequency.exponentialRampToValueAtTime(Math.max(1,glideTo), c.currentTime+dur);
+      g.gain.setValueAtTime(0, c.currentTime);
+      g.gain.linearRampToValueAtTime(vol||0.14, c.currentTime+0.01);
+      g.gain.exponentialRampToValueAtTime(0.001, c.currentTime+dur);
+      o.connect(g); g.connect(c.destination);
+      o.start(); o.stop(c.currentTime+dur+0.02);
+    }catch(e){}
+  }
+  function noise(dur, vol){
+    try{
+      const c = ensure();
+      const buf = c.createBuffer(1, c.sampleRate*dur, c.sampleRate);
+      const d = buf.getChannelData(0);
+      for(let i=0;i<d.length;i++) d[i] = (Math.random()*2-1) * (1-i/d.length);
+      const src = c.createBufferSource(); src.buffer = buf;
+      const g = c.createGain(); g.gain.value = vol||0.12;
+      src.connect(g); g.connect(c.destination); src.start();
+    }catch(e){}
+  }
+  return {
+    unlock(){ ensure(); },
+    step(){ noise(0.045,0.03); },
+    select(){ tone(520,0.06,'square',0.08); },
+    confirm(){ tone(440,0.08,'square',0.1); tone(660,0.09,'square',0.09); },
+    cancel(){ tone(300,0.09,'square',0.08); },
+    hit(){ tone(140,0.12,'sawtooth',0.16,60); noise(0.08,0.06); },
+    hitCrit(){ tone(180,0.18,'sawtooth',0.2,50); noise(0.12,0.09); },
+    heal(){ tone(500,0.12,'sine',0.12,750); },
+    faint(){ tone(300,0.35,'sine',0.14,80); },
+    capture(){ tone(700,0.1,'sine',0.1,900); },
+    captureShake(){ tone(220,0.07,'square',0.09); },
+    captureSuccess(){ tone(500,0.12,'sine',0.13,1100); setTimeout(()=>tone(700,0.18,'sine',0.13,1400),120); },
+    captureFail(){ tone(260,0.2,'sawtooth',0.12,120); },
+    levelUp(){ [523,659,784,1046].forEach((f,i)=>setTimeout(()=>tone(f,0.16,'sine',0.12),i*90)); },
+    chest(){ tone(400,0.08,'square',0.1); setTimeout(()=>tone(600,0.14,'square',0.11),90); },
+    buy(){ tone(660,0.07,'square',0.09); setTimeout(()=>tone(880,0.08,'square',0.09),70); },
+    error(){ tone(200,0.12,'square',0.1); },
+    bossRoar(){ tone(90,0.5,'sawtooth',0.2,55); noise(0.3,0.1); },
+    bossDefeat(){ [392,523,659,784,1046,1318].forEach((f,i)=>setTimeout(()=>tone(f,0.22,'sine',0.13),i*110)); },
+    unlock(){ tone(300,0.15,'sine',0.12,500); setTimeout(()=>tone(500,0.15,'sine',0.12,900),150); setTimeout(()=>tone(900,0.3,'sine',0.14,1400),300); },
+    portal(){ tone(220,0.3,'sine',0.12,880); },
+    attackFire(){ tone(180,0.14,'sawtooth',0.15,90); },
+    attackIce(){ tone(900,0.14,'triangle',0.1,300); },
+    attackElectric(){ tone(1200,0.08,'square',0.12,80); setTimeout(()=>tone(1000,0.06,'square',0.1),60); },
+    attackNature(){ tone(500,0.1,'triangle',0.1,300); },
+    attackDark(){ tone(120,0.2,'sawtooth',0.14,60); },
+    attackNormal(){ tone(300,0.09,'square',0.11,150); },
+  };
+})();
+
+/* ---------------- RARITIES ---------------- */
+const RARITIES = {
+  comun:      { name:'Común',      color:'#9aa5bb', glow:0,   particles:0, weight:45,  statMul:1.0 },
+  pococomun:  { name:'Poco Común', color:'#5ee68a', glow:4,   particles:1, weight:25,  statMul:1.18 },
+  raro:       { name:'Raro',       color:'#4fb3ff', glow:8,   particles:2, weight:15,  statMul:1.4 },
+  epico:      { name:'Épico',      color:'#b874ff', glow:13,  particles:3, weight:8,   statMul:1.7 },
+  legendario: { name:'Legendario', color:'#ffcf5c', glow:20,  particles:5, weight:4,   statMul:2.1 },
+  mitico:     { name:'Mítico',     color:'#ff7ce0', glow:26,  particles:7, weight:1.8, statMul:2.6 },
+  omega:      { name:'Omega',      color:'#ff4d4d', glow:30,  particles:9, weight:0.8, statMul:3.2 },
+  prohibido:  { name:'Prohibido',  color:'#8a2be2', glow:34,  particles:11,weight:0.3, statMul:3.9 },
+  secreto:    { name:'Secreto',    color:'#ffffff', glow:40,  particles:14,weight:0.1, statMul:4.8 },
+};
+const RARITY_ORDER = ['comun','pococomun','raro','epico','legendario','mitico','omega','prohibido','secreto'];
+
+/* ---------------- TYPES ---------------- */
+const TYPE_ADV = {
+  fuego:['planta','hielo'], agua:['fuego','tierra'], planta:['agua','tierra'],
+  hielo:['planta','viento'], electrico:['agua','viento'], tierra:['electrico','fuego'],
+  viento:['tierra','veneno'], veneno:['planta','feerico'], oscuro:['psiquico','cosmico'],
+  cristal:['viento','volador'], cosmico:['oscuro','psiquico'], feerico:['oscuro','tierra'],
+  volador:['planta','veneno'], normal:[]
+};
+function typeMultiplier(atkType, defTypes){
+  let m = 1;
+  const strong = TYPE_ADV[atkType]||[];
+  for(const dt of defTypes){
+    if(strong.includes(dt)) m *= 1.5;
+  }
+  for(const [t,list] of Object.entries(TYPE_ADV)){
+    if(list.includes(atkType) && defTypes.includes(t)) m *= 0.67;
+  }
+  return m;
+}
+
+/* ---------------- ATTACKS ---------------- */
+const ATTACKS = {
+  placaje:      { name:'Placaje',        type:'normal',   power:35, acc:1.0,  sfx:'attackNormal',   desc:'Un golpe directo con el cuerpo.' },
+  golpe:        { name:'Golpe',          type:'normal',   power:40, acc:0.95, sfx:'attackNormal',   desc:'Un impacto contundente.' },
+  embiste:      { name:'Embiste',        type:'normal',   power:50, acc:0.9,  sfx:'attackNormal',   desc:'Carga con fuerza bruta.' },
+  latigazo:     { name:'Látigo de Hojas',type:'planta',   power:45, acc:0.95, sfx:'attackNature',   desc:'Azota con hojas afiladas.' },
+  hojasAfiladas:{ name:'Hojas Afiladas', type:'planta',   power:60, acc:0.9,  sfx:'attackNature',   desc:'Ráfaga de hojas cortantes.' },
+  llamarada:    { name:'Llamarada',      type:'fuego',    power:65, acc:0.9,  sfx:'attackFire',     status:{type:'quemado',chance:0.2}, desc:'Estalla en llamas intensas.' },
+  ascuas:       { name:'Ascuas',         type:'fuego',    power:40, acc:0.97, sfx:'attackFire',     status:{type:'quemado',chance:0.1}, desc:'Pequeñas brasas ardientes.' },
+  rayoHelado:   { name:'Rayo Helado',    type:'hielo',    power:55, acc:0.92, sfx:'attackIce',      status:{type:'congelado',chance:0.15}, desc:'Un haz de frío cortante.' },
+  ventisca:     { name:'Ventisca',       type:'hielo',    power:75, acc:0.75, sfx:'attackIce',      status:{type:'congelado',chance:0.2}, desc:'Tormenta helada devastadora.' },
+  chispazo:     { name:'Chispazo',       type:'electrico',power:45, acc:0.97, sfx:'attackElectric', status:{type:'paralizado',chance:0.15}, desc:'Una descarga rápida.' },
+  trueno:       { name:'Trueno',         type:'electrico',power:78, acc:0.75, sfx:'attackElectric', status:{type:'paralizado',chance:0.25}, desc:'Un rayo devastador.' },
+  lanzarocas:   { name:'Lanzarrocas',    type:'tierra',   power:50, acc:0.9,  sfx:'attackNormal',   desc:'Arroja fragmentos de roca.' },
+  terremoto:    { name:'Terremoto',      type:'tierra',   power:80, acc:0.85, sfx:'attackNormal',   desc:'Sacude el suelo con violencia.' },
+  rafaga:       { name:'Ráfaga',         type:'viento',   power:42, acc:0.97, sfx:'attackNature',   desc:'Un golpe de viento cortante.' },
+  tornado:      { name:'Tornado',        type:'viento',   power:68, acc:0.85, sfx:'attackNature',   desc:'Un remolino furioso.' },
+  picotazoToxico:{name:'Picotazo Tóxico',type:'veneno',   power:38, acc:0.97, sfx:'attackNature',   status:{type:'envenenado',chance:0.35}, desc:'Inyecta veneno corrosivo.' },
+  vomitoAcido:  { name:'Vómito Ácido',   type:'veneno',   power:58, acc:0.85, sfx:'attackNature',   status:{type:'envenenado',chance:0.3}, desc:'Ácido corrosivo devastador.' },
+  golpeSombrio: { name:'Golpe Sombrío',  type:'oscuro',   power:55, acc:0.92, sfx:'attackDark',     desc:'Emerge desde las sombras.' },
+  ondaOscura:   { name:'Onda Oscura',    type:'oscuro',   power:72, acc:0.85, sfx:'attackDark',     desc:'Una onda de energía sombría.' },
+  rayoCristal:  { name:'Rayo Cristal',   type:'cristal',  power:60, acc:0.9,  sfx:'attackIce',      desc:'Dispara esquirlas cristalinas.' },
+  confusion:    { name:'Confusión',      type:'cristal',  power:45, acc:0.95, sfx:'attackIce',      desc:'Distorsiona la mente rival.' },
+  chorroAgua:   { name:'Chorro de Agua', type:'agua',     power:48, acc:0.95, sfx:'attackIce',      desc:'Un potente chorro a presión.' },
+  hidrobomba:   { name:'Hidrobomba',     type:'agua',     power:82, acc:0.78, sfx:'attackIce',      desc:'Una explosión de agua a presión.' },
+  vuelo:        { name:'Vuelo Rasante',  type:'volador',  power:52, acc:0.92, sfx:'attackNature',   desc:'Ataca en picado desde el aire.' },
+  rayoCosmico:  { name:'Rayo Cósmico',   type:'cosmico',  power:70, acc:0.85, sfx:'attackIce',      desc:'Energía estelar concentrada.' },
+  encanto:      { name:'Encanto Feérico',type:'feerico',  power:50, acc:0.93, sfx:'attackNature',   desc:'Una energía mágica encantadora.' },
+  furiaAbismal: { name:'Furia Abismal',  type:'oscuro',   power:95, acc:0.7,  sfx:'attackDark',     desc:'Desata poder oscuro absoluto.' },
+  novaEstelar:  { name:'Nova Estelar',   type:'cosmico',  power:100,acc:0.68, sfx:'attackElectric', desc:'Libera la fuerza de una estrella.' },
+};
+
+/* ---------------- ITEMS ---------------- */
+const ITEMS = {
+  esferaBasica:   { name:'Esfera Básica',    cat:'esfera', price:80,   color:'#c94b4b', desc:'Una esfera de captura simple.', captureBase:0.30 },
+  esferaAvanzada: { name:'Esfera Avanzada',  cat:'esfera', price:260,  color:'#4b8ec9', desc:'Mejor ratio de captura.',       captureBase:0.55 },
+  esferaUltra:    { name:'Esfera Ultra',     cat:'esfera', price:640,  color:'#c9a34b', desc:'Alta probabilidad de captura.', captureBase:0.78 },
+  esferaMaestra:  { name:'Esfera Maestra',   cat:'esfera', price:2200, color:'#8a4bc9', desc:'La esfera definitiva.',         captureBase:0.95 },
+  pocion:         { name:'Poción',           cat:'pocion', price:60,   color:'#5ee68a', desc:'Restaura 40% de la vida.',       heal:0.4 },
+  superPocion:    { name:'Superpoción',      cat:'pocion', price:180,  color:'#33c46a', desc:'Restaura 75% de la vida.',       heal:0.75 },
+  pocionMaxima:   { name:'Poción Máxima',    cat:'pocion', price:420,  color:'#189a4c', desc:'Restaura toda la vida.',         heal:1.0 },
+  revivir:        { name:'Revivir',          cat:'pocion', price:300,  color:'#ffcf5c', desc:'Revive a una criatura debilitada al 50%.', revive:0.5 },
+  antidoto:       { name:'Antídoto',         cat:'pocion', price:50,   color:'#7ec9c4', desc:'Cura el veneno.', cure:'envenenado' },
+  fragmentoCristal:{ name:'Fragmento de Cristal', cat:'material', price:40, color:'#9fd8ff', desc:'Material brillante para comerciar.' },
+  escama:         { name:'Escama Antigua',   cat:'material', price:35,  color:'#c7b88a', desc:'Escama de una criatura salvaje.' },
+  pluma:          { name:'Pluma Radiante',   cat:'material', price:45,  color:'#e8e8e8', desc:'Pluma ligera y brillante.' },
+  esenciaOscura:  { name:'Esencia Oscura',   cat:'material', price:70,  color:'#5a3d8a', desc:'Energía condensada del vacío.' },
+};
+
+/* =====================================================================
+   WORLDS
+   ===================================================================== */
+const WORLDS = [
+  { id:0, key:'bosque',  name:'Bosque Esmeralda',   emoji:'🌿', ground:'#2b6b3f', ground2:'#245a35', path:'#7a6a45', water:'#2f6f8a', accent:'#5ee68a', decor:['tree','bush','rock'], keyName:'Llave del Bosque' },
+  { id:1, key:'helado',  name:'Cumbre Helada',      emoji:'❄️', ground:'#dce9f2', ground2:'#c3d9ea', path:'#eef6fb', water:'#8fd0e8', accent:'#8fd8ff', decor:['pine','icerock','snowdrift'], keyName:'Llave Helada' },
+  { id:2, key:'volcan',  name:'Caldera Ígnea',      emoji:'🌋', ground:'#3a2320', ground2:'#2c1917', path:'#55372a', water:'#ff6a2e', accent:'#ff7a3d', decor:['rockspike','lavapool','ash'], keyName:'Llave Ígnea' },
+  { id:3, key:'desierto',name:'Dunas Áureas',       emoji:'🏜️', ground:'#d9b96b', ground2:'#c9a656', path:'#e8d38a', water:'#5aa8c9', accent:'#ffdf8a', decor:['cactus','dune','bone'], keyName:'Llave Dorada' },
+  { id:4, key:'central', name:'Central Eléctrica',  emoji:'⚡', ground:'#3d4250', ground2:'#31363f', path:'#565d6e', water:'#2e8a9e', accent:'#ffe45c', decor:['pylon','crate','pipe'], keyName:'Llave Eléctrica' },
+  { id:5, key:'cielo',   name:'Islas del Cielo',    emoji:'☁️', ground:'#bfe3ff', ground2:'#a8d4f5', path:'#e6f4ff', water:'#7cc3f0', accent:'#ffffff', decor:['cloudpuff','platform','crystal'], keyName:'Llave Celestial' },
+  { id:6, key:'espacio', name:'Vacío Estelar',      emoji:'🌌', ground:'#0d0f22', ground2:'#080a18', path:'#1c2140', water:'#2a1450', accent:'#b874ff', decor:['asteroid','starcluster','panel'], keyName:'Llave Estelar' },
+  { id:7, key:'pantano', name:'Ciénaga Sombría',    emoji:'☠️', ground:'#3a4a2e', ground2:'#2e3b24', path:'#5a5a3a', water:'#3a5a3a', accent:'#8ab24a', decor:['reed','mudpool','deadtree'], keyName:'Llave del Pantano' },
+  { id:8, key:'jardin',  name:'Jardín Encantado',   emoji:'🌸', ground:'#f5d6ea', ground2:'#eec3dd', path:'#fff0f8', water:'#c9e8ff', accent:'#ff9ed1', decor:['flower','mushroom','archway'], keyName:'Llave Encantada' },
+  { id:9, key:'oscuro',  name:'Reino Umbrío',       emoji:'🌑', ground:'#1a1420', ground2:'#120e18', path:'#2a2035', water:'#150a24', accent:'#8a2be2', decor:['thornspire','rubble','altar'], keyName:'Llave Umbría' },
+];
+const WORLD_SIZE = 42;
+
+/* =====================================================================
+   SPECIES
+   ===================================================================== */
+const TYPE_MOVEPOOL = {
+  normal:['placaje','golpe','embiste'], planta:['latigazo','hojasAfiladas'], fuego:['ascuas','llamarada'],
+  hielo:['rayoHelado','ventisca'], electrico:['chispazo','trueno'], tierra:['lanzarocas','terremoto'],
+  viento:['rafaga','tornado'], veneno:['picotazoToxico','vomitoAcido'], oscuro:['golpeSombrio','ondaOscura','furiaAbismal'],
+  cristal:['rayoCristal','confusion'], agua:['chorroAgua','hidrobomba'], volador:['vuelo'],
+  cosmico:['rayoCosmico','novaEstelar'], feerico:['encanto']
+};
+function buildLearnset(types){
+  let pool = ['placaje'];
+  pool = pool.concat(TYPE_MOVEPOOL[types[0]]||[]);
+  if(types[1]) pool = pool.concat(TYPE_MOVEPOOL[types[1]]||[]);
+  pool = [...new Set(pool)].slice(0,4);
+  const levels = [1,1,12,26];
+  return pool.map((m,i)=>({ move:m, level:levels[i]||1 }));
+}
+function autoPattern(id, types){
+  if(types.includes('cristal')) return 'facetas';
+  if(types.includes('fuego')) return 'llama';
+  if(types.includes('electrico')) return 'rayas';
+  if(types.includes('hielo')) return 'facetas';
+  if(types.includes('cosmico')) return 'estrellas';
+  if(types.includes('oscuro')) return 'grieta';
+  const opts=['solido','manchas','anillo','espiral'];
+  return opts[hashStr(id)%opts.length];
+}
+const RARITY_FLAVOR = {
+  comun:'Es una criatura común, fácil de encontrar explorando la zona.',
+  pococomun:'No es tan fácil de ver, prefiere zonas alejadas del camino.',
+  raro:'Un ejemplar esquivo; muchos exploradores nunca llegan a verlo.',
+  epico:'Su presencia irradia poder. Pocos logran acercarse sin ser detectados.',
+  legendario:'Se dice que solo aparece ante quienes han demostrado ser dignos.',
+  mitico:'Su existencia es casi un mito entre los habitantes de este mundo.',
+  omega:'Una anomalía viviente. Su poder desafía toda clasificación conocida.',
+  prohibido:'Un ser cuya sola existencia inquieta a las criaturas cercanas.',
+  secreto:'Nadie ha logrado documentar por completo esta criatura.',
+};
+const SPECIES = [];
+function S(id,name,worldIdx,rarity,types,color,opts){
+  opts = opts||{};
+  const sp = {
+    id, name, worldIdx, rarity, types, color,
+    accent: opts.accent || shadeColor(color,0.3),
+    pattern: opts.pattern || autoPattern(id,types),
+    isBoss: !!opts.isBoss, isSpecial:!!opts.isSpecial, minWorldIdx: opts.minWorldIdx,
+    desc: opts.desc || (`${name}. `+RARITY_FLAVOR[rarity]),
+    learnset: buildLearnset(types),
+    sizeMod: opts.sizeMod || (opts.isBoss?2.3:1.0),
+  };
+  SPECIES.push(sp);
+  return sp;
+}
+// --- World 0: Bosque Esmeralda ---
+S('cuboHoja','Cubo Hoja',0,'comun',['planta'],'#6fbf5a');
+S('cuboMusgo','Cubo Musgo',0,'comun',['planta','tierra'],'#4f7a3f');
+S('cuboArdilla','Cubo Ardilla',0,'pococomun',['normal'],'#c98a4b');
+S('cuboBuho','Cubo Búho',0,'raro',['oscuro','volador'],'#6a5a8a');
+S('cuboAncestral','Cubo Ancestral',0,'legendario',['planta','cristal'],'#2e8b57');
+S('cuboRobleGuardian','Cubo Roble Guardián',0,'legendario',['planta','tierra'],'#1f5c33',{isBoss:true,desc:'El guardián ancestral del Bosque Esmeralda. Protege la llave con todas sus fuerzas.'});
+// --- World 1: Cumbre Helada ---
+S('cuboNieve','Cubo Nieve',1,'comun',['hielo'],'#eaf6ff');
+S('cuboEscarcha','Cubo Escarcha',1,'pococomun',['hielo'],'#b9e6ff');
+S('cuboGlaciar','Cubo Glaciar',1,'raro',['hielo','cristal'],'#7fd0ff');
+S('cuboVentisca','Cubo Ventisca',1,'epico',['hielo','viento'],'#cdefff');
+S('cuboAurora','Cubo Aurora',1,'legendario',['hielo','cosmico'],'#a3ffe6');
+S('cuboGlacialRey','Cubo Glacial Rey',1,'legendario',['hielo','cristal'],'#5cc9ff',{isBoss:true,desc:'El monarca helado de la Cumbre. Congela todo lo que se le opone.'});
+// --- World 2: Caldera Ígnea ---
+S('cuboCeniza','Cubo Ceniza',2,'comun',['fuego'],'#7a5a4a');
+S('cuboAscua','Cubo Ascua',2,'pococomun',['fuego'],'#ff8a3d');
+S('cuboMagma','Cubo Magma',2,'raro',['fuego','tierra'],'#ff5a2e');
+S('cuboLava','Cubo Lava',2,'epico',['fuego'],'#ff3d1a');
+S('cuboFenix','Cubo Fénix',2,'legendario',['fuego','volador'],'#ffcf3d');
+S('cuboVulcano','Cubo Vulcano',2,'legendario',['fuego','tierra'],'#ff2e00',{isBoss:true,desc:'Nacido del núcleo de la Caldera Ígnea. Su furia derrite la piedra.'});
+// --- World 3: Dunas Áureas ---
+S('cuboArena','Cubo Arena',3,'comun',['tierra'],'#d9c07a');
+S('cuboEscorpion','Cubo Escorpión',3,'pococomun',['veneno','tierra'],'#c9954b');
+S('cuboCactus','Cubo Cactus',3,'raro',['planta','tierra'],'#6bbf6b');
+S('cuboMomia','Cubo Momia',3,'epico',['oscuro','tierra'],'#cbb87a');
+S('cuboFaraon','Cubo Faraón',3,'legendario',['tierra','cristal'],'#ffd75c');
+S('cuboEsfinge','Cubo Esfinge',3,'legendario',['tierra','cristal'],'#e8b93d',{isBoss:true,desc:'Guardiana milenaria de las Dunas Áureas. Solo los dignos pasan.'});
+// --- World 4: Central Eléctrica ---
+S('cuboChispa','Cubo Chispa',4,'comun',['electrico'],'#ffe45c');
+S('cuboVoltio','Cubo Voltio',4,'pococomun',['electrico'],'#ffd11f');
+S('cuboDinamo','Cubo Dínamo',4,'raro',['electrico','tierra'],'#f2c400');
+S('cuboReactor','Cubo Reactor',4,'epico',['electrico','veneno'],'#d9ff3d');
+S('cuboAmperio','Cubo Amperio',4,'legendario',['electrico','cosmico'],'#fff36b');
+S('cuboGeneradorSupremo','Cubo Generador Supremo',4,'legendario',['electrico','cosmico'],'#fff200',{isBoss:true,desc:'El núcleo viviente de la Central Eléctrica, sobrecargado de energía.'});
+// --- World 5: Islas del Cielo ---
+S('cuboNube','Cubo Nube',5,'comun',['viento'],'#f0f7ff');
+S('cuboBrisa','Cubo Brisa',5,'pococomun',['viento'],'#dff0ff');
+S('cuboHalcon','Cubo Halcón',5,'raro',['volador','normal'],'#b5c8d9');
+S('cuboTormenta','Cubo Tormenta',5,'epico',['viento','electrico'],'#9fb8d9');
+S('cuboCelestial','Cubo Celestial',5,'legendario',['volador','cosmico'],'#ffffff');
+S('cuboTitanCielo','Cubo Titán del Cielo',5,'legendario',['volador','viento'],'#e8f4ff',{isBoss:true,desc:'Domina las corrientes de las Islas del Cielo desde tiempos olvidados.'});
+// --- World 6: Vacío Estelar ---
+S('cuboAsteroide','Cubo Asteroide',6,'comun',['cosmico','tierra'],'#7a7a8a');
+S('cuboCometa','Cubo Cometa',6,'pococomun',['cosmico','hielo'],'#a3c9ff');
+S('cuboNebulosa','Cubo Nebulosa',6,'raro',['cosmico'],'#b874ff');
+S('cuboGalactico','Cubo Galáctico',6,'epico',['cosmico','cristal'],'#7c4bd9');
+S('cuboEstelar','Cubo Estelar',6,'legendario',['cosmico'],'#ffe45c');
+S('cuboDevoradorCosmico','Cubo Devorador Cósmico',6,'legendario',['cosmico','oscuro'],'#4b1f8a',{isBoss:true,desc:'Una entidad que consume la luz de las estrellas cercanas.'});
+// --- World 7: Ciénaga Sombría ---
+S('cuboLodo','Cubo Lodo',7,'comun',['veneno','tierra'],'#6b7a4a');
+S('cuboRana','Cubo Rana',7,'pococomun',['agua','veneno'],'#6fbf7a');
+S('cuboSanguijuela','Cubo Sanguijuela',7,'raro',['veneno'],'#4a6b3a');
+S('cuboVeneno','Cubo Veneno',7,'epico',['veneno'],'#8a4bc9');
+S('cuboPestilente','Cubo Pestilente',7,'legendario',['veneno','oscuro'],'#5a2e6b');
+S('cuboHidraPantanosa','Cubo Hidra Pantanosa',7,'legendario',['veneno','agua'],'#3d5a2e',{isBoss:true,desc:'La bestia ancestral de la Ciénaga Sombría, envuelta en toxinas.'});
+// --- World 8: Jardín Encantado ---
+S('cuboPetalo','Cubo Pétalo',8,'comun',['feerico','planta'],'#ffb3d9');
+S('cuboMiel','Cubo Miel',8,'pococomun',['feerico'],'#ffd766');
+S('cuboHada','Cubo Hada',8,'raro',['feerico','volador'],'#e3b3ff');
+S('cuboEncantado','Cubo Encantado',8,'epico',['feerico','cristal'],'#ff8fd1');
+S('cuboUnicornio','Cubo Unicornio',8,'legendario',['feerico','cosmico'],'#ffffff');
+S('cuboGuardianFloral','Cubo Guardián Floral',8,'legendario',['feerico','planta'],'#ff6bb3',{isBoss:true,desc:'Protector del Jardín Encantado, tejido con magia floral pura.'});
+// --- World 9: Reino Umbrío ---
+S('cuboSombra','Cubo Sombra',9,'comun',['oscuro'],'#4a3d5a');
+S('cuboFantasma','Cubo Fantasma',9,'pococomun',['oscuro'],'#6b5a8a');
+S('cuboPesadilla','Cubo Pesadilla',9,'raro',['oscuro'],'#3d2e5a');
+S('cuboAbismal','Cubo Abismal',9,'epico',['oscuro','cosmico'],'#2e1f3d');
+S('cuboDemonio','Cubo Demonio',9,'legendario',['oscuro','fuego'],'#8a1f2e');
+S('cuboSenorOscuro','Cubo Señor Oscuro',9,'legendario',['oscuro','cosmico'],'#1a0a24',{isBoss:true,sizeMod:2.7,desc:'El soberano del Reino Umbrío. El desafío final de este mundo.'});
+// --- Specials (ultra-rare, cross-world) ---
+S('cuboGenesis','Cubo Génesis',4,'mitico',['cosmico','feerico'],'#ffe0f5',{isSpecial:true,minWorldIdx:3,desc:'Se dice que fue el primer cubo en existir. Aparece rara vez, en cualquier mundo avanzado.'});
+S('cuboAnomalia','Cubo Anomalía',6,'omega',['cosmico','oscuro'],'#ff2e6b',{isSpecial:true,minWorldIdx:5,desc:'Una fractura viviente en las reglas del mundo. Extremadamente inestable.'});
+S('cuboVacio','Cubo Vacío',9,'prohibido',['oscuro','cosmico'],'#0a0510',{isSpecial:true,minWorldIdx:7,desc:'Un ser que no debería existir. Su sola presencia perturba el entorno.'});
+S('cuboSecreto','???',0,'secreto',['cristal','cosmico'],'#ffffff',{isSpecial:true,minWorldIdx:0,desc:'Nadie ha confirmado nunca haber visto a esta criatura. ¿Será real?'});
+
+const SPECIES_BY_ID = {}; SPECIES.forEach(s=>SPECIES_BY_ID[s.id]=s);
+const SPECIES_BY_WORLD = WORLDS.map((w,i)=>SPECIES.filter(s=>s.worldIdx===i && !s.isBoss && !s.isSpecial));
+const BOSS_BY_WORLD = WORLDS.map((w,i)=>SPECIES.find(s=>s.worldIdx===i && s.isBoss));
+const SPECIALS = SPECIES.filter(s=>s.isSpecial);
+
+/* stat base table per rarity tier (level 1 base + per-level growth) */
+const RARITY_STATS = {
+  comun:      { hp:[22,3.1],  atk:[7,1.0],  def:[6,0.9],  spd:[7,0.9] },
+  pococomun:  { hp:[30,4.0],  atk:[9,1.35], def:[8,1.15], spd:[9,1.2] },
+  raro:       { hp:[40,5.4],  atk:[12,1.85],def:[11,1.6], spd:[12,1.55] },
+  epico:      { hp:[54,7.2],  atk:[17,2.55],def:[15,2.25],spd:[15,2.1] },
+  legendario: { hp:[80,9.8],  atk:[24,3.5], def:[21,3.05],spd:[19,2.85] },
+  mitico:     { hp:[120,12.6],atk:[34,4.5], def:[30,4.0], spd:[26,3.7] },
+  omega:      { hp:[165,15.8],atk:[46,5.7], def:[41,5.05],spd:[34,4.6] },
+  prohibido:  { hp:[220,19.2],atk:[60,7.0], def:[54,6.2], spd:[43,5.6] },
+  secreto:    { hp:[300,23.5],atk:[80,8.6], def:[72,7.6], spd:[56,6.8] },
+};
+function statFor(species, level, statKey, boss){
+  const base = RARITY_STATS[species.rarity][statKey];
+  const variance = seededVariance(species.id, statKey, 0.9, 1.12);
+  let v = (base[0] + base[1]*(level-1)) * variance;
+  if(boss) v *= 1.6;
+  return Math.max(1,Math.round(v));
+}
+function xpToNext(level){ return Math.floor(45*Math.pow(level,1.55))+20; }
+function xpYield(species, level){
+  const w = RARITIES[species.rarity].weight;
+  const base = 12 + (100/Math.max(w,0.1))*0.55;
+  return Math.round(base + level*2.2) * (species.isBoss?4:1);
+}
+
+/* =====================================================================
+   ITEMS/KEYS auto-added per world
+   ===================================================================== */
+WORLDS.forEach(w=>{
+  ITEMS['llave_'+w.key] = { name:w.keyName, cat:'llave', price:0, color:w.accent, desc:'Abre el camino hacia el siguiente mundo.' };
+});
+
+/* =====================================================================
+   SPHERES list & POTIONS list (for UI ordering)
+   ===================================================================== */
+const SPHERE_IDS = ['esferaBasica','esferaAvanzada','esferaUltra','esferaMaestra'];
+const POTION_IDS = ['pocion','superPocion','pocionMaxima','revivir','antidoto'];
+const MATERIAL_IDS = ['fragmentoCristal','escama','pluma','esenciaOscura'];
+
+/* =====================================================================
+   NPCs & QUESTS per world
+   ===================================================================== */
+const NPCS = [];
+WORLDS.forEach((w,i)=>{
+  NPCS.push({ id:'shop_'+w.key, worldIdx:i, role:'shop', name:'Tendero de '+w.name,
+    lines:['¡Bienvenido a mi tienda! Echa un vistazo a mis productos.','Las esferas de mayor calidad cuestan más, ¡pero merecen la pena!'] });
+  NPCS.push({ id:'quest_'+w.key, worldIdx:i, role:'quest', name:'Viajero de '+w.name,
+    lines:['Este mundo esconde criaturas fascinantes. ¿Te atreves a explorarlo?','Cuentan leyendas sobre un guardián muy poderoso en esta zona...'] });
+  NPCS.push({ id:'lore_'+w.key, worldIdx:i, role:'lore', name:'Anciano de '+w.name,
+    lines:['Hace mucho tiempo, los cubos originales dieron forma a estos mundos.','Cada mundo guarda una llave. Sin derrotar a su guardián, no hay paso posible.'] });
+});
+
+function generateWorldQuests(idx){
+  const w = WORLDS[idx];
+  const boss = BOSS_BY_WORLD[idx];
+  return [
+    { id:'w'+idx+'_capture', worldIdx:idx, title:'Coleccionista de '+w.name, desc:'Captura 3 criaturas en '+w.name+'.',
+      type:'capture', target:3, reward:{coins:150+idx*40, items:[{id:'pocion',qty:2}]} },
+    { id:'w'+idx+'_battle', worldIdx:idx, title:'Entrenamiento de combate', desc:'Gana 5 combates contra criaturas salvajes en '+w.name+'.',
+      type:'battle', target:5, reward:{coins:180+idx*40, items:[{id:'esferaAvanzada',qty:1}]} },
+    { id:'w'+idx+'_talk', worldIdx:idx, title:'Buscando sabiduría', desc:'Habla con el Anciano de '+w.name+'.',
+      type:'talk', target:1, npcId:'lore_'+w.key, reward:{coins:60+idx*10, items:[]} },
+    { id:'w'+idx+'_boss', worldIdx:idx, title:'Guardián de '+w.name, desc:'Derrota a '+(boss?boss.name:'el jefe')+' y obtén la '+w.keyName+'.',
+      type:'boss', target:1, reward:{coins:400+idx*120, items:[{id:'esferaUltra',qty:2}]} },
+  ];
+}
+const QUESTS = [];
+WORLDS.forEach((w,i)=>generateWorldQuests(i).forEach(q=>QUESTS.push(q)));
+const QUESTS_BY_ID = {}; QUESTS.forEach(q=>QUESTS_BY_ID[q.id]=q);
+
+/* =====================================================================
+   PARTICLES
+   ===================================================================== */
+const PARTICLES = [];
+function spawnParticle(x,y,color,opts){
+  opts=opts||{};
+  PARTICLES.push({ x,y, vx:opts.vx||rnd(-14,14), vy:opts.vy||rnd(-26,-6), life:0, maxLife:opts.life||0.7,
+    color, size:opts.size||rnd(2,4), grav:opts.grav!==undefined?opts.grav:20, shape:opts.shape||'circle' });
+}
+function updateParticles(dt){
+  for(let i=PARTICLES.length-1;i>=0;i--){
+    const p = PARTICLES[i];
+    p.life += dt; if(p.life>=p.maxLife){ PARTICLES.splice(i,1); continue; }
+    p.x += p.vx*dt; p.y += p.vy*dt; p.vy += p.grav*dt;
+  }
+}
+function drawParticlesWorld(ctx, camX, camY){
+  for(const p of PARTICLES){
+    const a = 1 - p.life/p.maxLife;
+    ctx.globalAlpha = clamp(a,0,1);
+    ctx.fillStyle = p.color;
+    const sx = p.x-camX, sy = p.y-camY;
+    if(p.shape==='spark'){
+      ctx.fillRect(sx-p.size/2, sy-1, p.size, 2);
+    } else {
+      ctx.beginPath(); ctx.arc(sx, sy, p.size, 0, 7); ctx.fill();
+    }
+  }
+  ctx.globalAlpha = 1;
+}
+let auraTimer = {};
+function maybeSpawnAura(entKey, x, y, species){
+  const r = RARITIES[species.rarity];
+  if(r.particles<=0) return;
+  auraTimer[entKey] = (auraTimer[entKey]||0) - 1;
+  if(auraTimer[entKey]>0) return;
+  auraTimer[entKey] = Math.max(4, 26 - r.particles*2);
+  const ang = rnd(0,Math.PI*2);
+  const rad = 14 + rnd(0,8);
+  spawnParticle(x+Math.cos(ang)*rad, y+Math.sin(ang)*rad, r.color, { vx:rnd(-6,6), vy:rnd(-18,-30), life:rnd(0.5,0.9), size:rnd(1.5,3), grav:-4 });
+}
+
+/* =====================================================================
+   CUBE RENDERING (canvas) - shared by world + battle scenes
+   ===================================================================== */
+function roundRectPath(ctx,x,y,w,h,r){
+  ctx.beginPath();
+  ctx.moveTo(x+r,y);
+  ctx.arcTo(x+w,y,x+w,y+h,r); ctx.arcTo(x+w,y+h,x,y+h,r);
+  ctx.arcTo(x,y+h,x,y,r); ctx.arcTo(x,y,x+w,y,r);
+  ctx.closePath();
+}
+function drawCube(ctx, cx, cy, size, color, pattern, rarity, opts){
+  opts = opts||{};
+  const r = RARITIES[rarity]||RARITIES.comun;
+  const half = size/2;
+  const bob = opts.bob||0;
+  const x = cx-half, y = cy-half+bob;
+
+  // soft ground shadow
+  ctx.save();
+  ctx.globalAlpha = 0.28;
+  ctx.fillStyle = '#000';
+  ctx.beginPath();
+  ctx.ellipse(cx, cy+half*0.92, half*0.85, half*0.28, 0, 0, 7);
+  ctx.fill();
+  ctx.restore();
+
+  ctx.save();
+  if(r.glow>0){
+    ctx.shadowColor = r.color;
+    ctx.shadowBlur = r.glow * (opts.glowMul||1);
+  }
+  // base body with gradient
+  const grad = ctx.createLinearGradient(x,y,x+size,y+size);
+  grad.addColorStop(0, shadeColor(color,0.28));
+  grad.addColorStop(0.5, color);
+  grad.addColorStop(1, shadeColor(color,-0.28));
+  roundRectPath(ctx,x,y,size,size,size*0.18);
+  ctx.fillStyle = grad;
+  ctx.fill();
+
+  // pattern overlay
+  ctx.save();
+  roundRectPath(ctx,x,y,size,size,size*0.18);
+  ctx.clip();
+  ctx.globalAlpha = 0.32;
+  const pc = shadeColor(color,-0.45);
+  ctx.fillStyle = pc; ctx.strokeStyle = pc;
+  switch(pattern){
+    case 'rayas':
+      for(let i=-1;i<4;i++){ ctx.fillRect(x+i*size/3, y, size/7, size); }
+      break;
+    case 'manchas':
+      for(let i=0;i<5;i++){ const mx=x+seededVariance(pattern+i,'x',0.1,0.9)*size, my=y+seededVariance(pattern+i,'y',0.1,0.9)*size;
+        ctx.beginPath(); ctx.arc(mx,my,size*0.09,0,7); ctx.fill(); }
+      break;
+    case 'grieta':
+      ctx.lineWidth=2; ctx.beginPath(); ctx.moveTo(x+size*0.2,y); ctx.lineTo(x+size*0.5,y+size*0.4);
+      ctx.lineTo(x+size*0.3,y+size*0.6); ctx.lineTo(x+size*0.6,y+size); ctx.stroke();
+      break;
+    case 'facetas':
+      ctx.lineWidth=1.4; ctx.beginPath();
+      ctx.moveTo(x,y); ctx.lineTo(x+size,y+size); ctx.moveTo(x+size,y); ctx.lineTo(x,y+size);
+      ctx.moveTo(x+size/2,y); ctx.lineTo(x+size/2,y+size); ctx.stroke();
+      break;
+    case 'anillo':
+      ctx.lineWidth = size*0.12; ctx.beginPath(); ctx.arc(x+size/2,y+size/2,size*0.28,0,7); ctx.stroke();
+      break;
+    case 'espiral':
+      ctx.lineWidth=2; ctx.beginPath();
+      for(let a=0;a<10;a+=0.4){ const rr=a*size*0.045; ctx.lineTo(x+size/2+Math.cos(a)*rr, y+size/2+Math.sin(a)*rr); }
+      ctx.stroke();
+      break;
+    case 'llama':
+      ctx.beginPath(); ctx.moveTo(x+size*0.5,y+size*0.05);
+      ctx.quadraticCurveTo(x+size*0.85,y+size*0.5,x+size*0.5,y+size*0.95);
+      ctx.quadraticCurveTo(x+size*0.65,y+size*0.55,x+size*0.5,y+size*0.05);
+      ctx.fill();
+      break;
+    case 'estrellas':
+      for(let i=0;i<4;i++){ const mx=x+seededVariance(pattern+i,'sx',0.15,0.85)*size, my=y+seededVariance(pattern+i,'sy',0.15,0.85)*size;
+        ctx.fillRect(mx-1,my-3,2,6); ctx.fillRect(mx-3,my-1,6,2); }
+      break;
+    default: break;
+  }
+  ctx.restore();
+
+  // outline
+  ctx.globalAlpha = 1;
+  roundRectPath(ctx,x,y,size,size,size*0.18);
+  ctx.lineWidth = Math.max(1.2, size*0.035);
+  ctx.strokeStyle = r.glow>0 ? r.color : shadeColor(color,-0.4);
+  ctx.stroke();
+
+  // top-face highlight for 3D feel
+  ctx.globalAlpha = 0.22;
+  ctx.fillStyle = '#fff';
+  roundRectPath(ctx,x+size*0.08,y+size*0.08,size*0.5,size*0.22,size*0.1);
+  ctx.fill();
+  ctx.restore();
+
+  if(opts.showRing){
+    ctx.save();
+    ctx.strokeStyle = r.color; ctx.globalAlpha=0.55; ctx.lineWidth=2;
+    ctx.beginPath(); ctx.ellipse(cx,cy+half*0.95,half*1.15,half*0.32,0,0,7); ctx.stroke();
+    ctx.restore();
+  }
+}
+
+/* =====================================================================
+   WORLD GENERATION
+   ===================================================================== */
+const WORLD_CACHE = {};
+function generateWorld(idx){
+  if(WORLD_CACHE[idx]) return WORLD_CACHE[idx];
+  const w = WORLDS[idx];
+  const rng = mulberry32(1000+idx*777);
+  const N = WORLD_SIZE;
+  const tiles = [];
+  for(let y=0;y<N;y++){ const row=[]; for(let x=0;x<N;x++){ row.push((x+y)%2===0?'ground':'ground2'); } tiles.push(row); }
+
+  // river winding through map
+  let rx = Math.floor(N*0.5);
+  for(let y=0;y<N;y++){
+    rx += Math.round(rng()*2-1);
+    rx = clamp(rx,3,N-4);
+    for(let dx=-1;dx<=1;dx++){ const xx=clamp(rx+dx,0,N-1); tiles[y][xx]='water'; }
+  }
+  // bridge crossing near town row
+  const bridgeRow = N-8;
+  for(let dx=-1;dx<=1;dx++){ tiles[bridgeRow][clamp(rx+dx,0,N-1)]='path'; }
+
+  // town area (bottom section)
+  const townY0 = N-7, townY1 = N-2, townX0 = Math.floor(N/2)-6, townX1 = Math.floor(N/2)+6;
+  for(let y=townY0;y<=townY1;y++) for(let x=townX0;x<=townX1;x++){ if(tiles[y] && tiles[y][x]!=='water') tiles[y][x]='path'; }
+
+  // boss arena (top section)
+  const bossY = 3, bossX = Math.floor(N/2);
+
+  const blocked = new Set();
+  const decor = [];
+  function key(x,y){ return x+','+y; }
+  // scatter decorations avoiding town & arena & river
+  const decTypesBlocking = new Set(['tree','pine','rockspike','icerock','cactus','pylon','thornspire','deadtree','archway']);
+  for(let i=0;i<170;i++){
+    const x = Math.floor(rng()*N), y = Math.floor(rng()*N);
+    if(y>=townY0-1 && y<=townY1+1 && x>=townX0-1 && x<=townX1+1) continue;
+    if(y<bossY+3 && Math.abs(x-bossX)<5) continue;
+    if(tiles[y][x]==='water') continue;
+    if(blocked.has(key(x,y))) continue;
+    const type = choice(w.decor);
+    decor.push({x,y,type});
+    if(decTypesBlocking.has(type)) blocked.add(key(x,y));
+  }
+  // boss arena ring decoration (non-blocking marker tiles)
+  for(let a=0;a<14;a++){
+    const ang = a/14*Math.PI*2;
+    const dx = Math.round(Math.cos(ang)*4), dy = Math.round(Math.sin(ang)*3);
+    const x = clamp(bossX+dx,1,N-2), y = clamp(bossY+dy,1,N-2);
+    if(!blocked.has(key(x,y))) decor.push({x,y,type:w.decor[2]||w.decor[0], ring:true});
+  }
+
+  // spawn anchors (avoid town/arena/water/blocked)
+  const anchors = [];
+  let tries=0;
+  while(anchors.length<16 && tries<800){
+    tries++;
+    const x = Math.floor(rng()*(N-6))+3, y = Math.floor(rng()*(N-10))+5;
+    if(y>=townY0-2 && x>=townX0-2 && x<=townX1+2) continue;
+    if(y<bossY+4 && Math.abs(x-bossX)<6) continue;
+    if(tiles[y][x]==='water') continue;
+    if(blocked.has(key(x,y))) continue;
+    anchors.push({x:x*TILE+TILE/2, y:y*TILE+TILE/2});
+  }
+
+  const npcsHere = NPCS.filter(n=>n.worldIdx===idx);
+  const npcPositions = [
+    { npc:npcsHere[0], x:(townX0+2)*TILE+16, y:(townY0+1)*TILE+16 },
+    { npc:npcsHere[1], x:(townX1-2)*TILE+16, y:(townY0+2)*TILE+16 },
+    { npc:npcsHere[2], x:Math.floor(N/2)*TILE+16, y:(townY1-1)*TILE+16 },
+  ];
+
+  const portal = { x:Math.floor(N/2)*TILE+16, y:(townY1)*TILE+16, toWorld: idx+1<WORLDS.length?idx+1:null };
+  const bossArena = { x:bossX*TILE+16, y:bossY*TILE+16 };
+
+  const data = { idx, N, tiles, decor, blocked, anchors, npcPositions, portal, bossArena,
+    pxW:N*TILE, pxH:N*TILE, spawnPoint:{x:Math.floor(N/2)*TILE+16, y:(townY1-2)*TILE+16} };
+  WORLD_CACHE[idx] = data;
+  return data;
+}
+function isBlocked(world, px, py, halfSize){
+  const N = world.N;
+  const pts = [[px-halfSize,py-halfSize],[px+halfSize,py-halfSize],[px-halfSize,py+halfSize],[px+halfSize,py+halfSize]];
+  for(const [x,y] of pts){
+    const tx = Math.floor(x/TILE), ty = Math.floor(y/TILE);
+    if(tx<0||ty<0||tx>=N||ty>=N) return true;
+    if(world.tiles[ty][tx]==='water') return true;
+    if(world.blocked.has(tx+','+ty)) return true;
+  }
+  return false;
+}
+function drawDecor(ctx, type, sx, sy, ring){
+  ctx.save();
+  ctx.translate(sx,sy);
+  if(ring) ctx.globalAlpha = 0.55;
+  switch(type){
+    case 'tree':
+      ctx.fillStyle='#6b4a2e'; ctx.fillRect(-4,2,8,14);
+      ctx.fillStyle='#2f7a3f'; ctx.beginPath(); ctx.arc(0,-8,15,0,7); ctx.fill();
+      ctx.fillStyle='#3d9750'; ctx.beginPath(); ctx.arc(-5,-14,10,0,7); ctx.fill();
+      break;
+    case 'bush':
+      ctx.fillStyle='#3d8a4a'; ctx.beginPath(); ctx.ellipse(0,4,14,9,0,0,7); ctx.fill();
+      ctx.fillStyle='#4fa85e'; ctx.beginPath(); ctx.ellipse(-4,0,9,7,0,0,7); ctx.fill();
+      break;
+    case 'rock':
+      ctx.fillStyle='#767c8a'; ctx.beginPath(); ctx.ellipse(0,4,13,9,0,0,7); ctx.fill();
+      ctx.fillStyle='#8b93a3'; ctx.beginPath(); ctx.ellipse(-3,0,7,5,0,0,7); ctx.fill();
+      break;
+    case 'pine':
+      ctx.fillStyle='#5a3a24'; ctx.fillRect(-3,6,6,10);
+      ctx.fillStyle='#1f6b52'; ctx.beginPath(); ctx.moveTo(0,-20); ctx.lineTo(13,4); ctx.lineTo(-13,4); ctx.fill();
+      ctx.beginPath(); ctx.moveTo(0,-12); ctx.lineTo(10,8); ctx.lineTo(-10,8); ctx.fill();
+      break;
+    case 'icerock':
+      ctx.fillStyle='#bfe6f5'; ctx.beginPath(); ctx.ellipse(0,4,13,9,0,0,7); ctx.fill();
+      ctx.fillStyle='#e6f7ff'; ctx.beginPath(); ctx.moveTo(-6,2); ctx.lineTo(0,-10); ctx.lineTo(6,2); ctx.fill();
+      break;
+    case 'snowdrift':
+      ctx.fillStyle='#ffffff'; ctx.beginPath(); ctx.ellipse(0,4,15,8,0,0,7); ctx.fill();
+      break;
+    case 'rockspike':
+      ctx.fillStyle='#4a2e26'; ctx.beginPath(); ctx.moveTo(0,-22); ctx.lineTo(9,6); ctx.lineTo(-9,6); ctx.fill();
+      break;
+    case 'lavapool':
+      ctx.fillStyle='#7a2e18'; ctx.beginPath(); ctx.ellipse(0,4,15,9,0,0,7); ctx.fill();
+      ctx.fillStyle='#ff5a1f'; ctx.beginPath(); ctx.ellipse(0,4,9,5,0,0,7); ctx.fill();
+      break;
+    case 'ash':
+      ctx.fillStyle='#5a5048'; ctx.beginPath(); ctx.ellipse(0,4,11,6,0,0,7); ctx.fill();
+      break;
+    case 'cactus':
+      ctx.fillStyle='#4a8a4a'; ctx.fillRect(-4,-14,8,22);
+      ctx.fillRect(-11,-4,7,10); ctx.fillRect(4,-9,7,10);
+      break;
+    case 'dune':
+      ctx.fillStyle='#c9a656'; ctx.beginPath(); ctx.ellipse(0,4,16,9,0,0,7); ctx.fill();
+      break;
+    case 'bone':
+      ctx.fillStyle='#e8dfc0'; ctx.fillRect(-2,-10,4,20); ctx.fillRect(-8,-10,16,4);
+      break;
+    case 'pylon':
+      ctx.fillStyle='#4a5060'; ctx.fillRect(-3,-20,6,26);
+      ctx.strokeStyle='#7a8494'; ctx.beginPath(); ctx.moveTo(-8,-14); ctx.lineTo(8,-6); ctx.moveTo(8,-14); ctx.lineTo(-8,-6); ctx.stroke();
+      break;
+    case 'crate':
+      ctx.fillStyle='#8a6a3d'; ctx.fillRect(-10,-6,20,16);
+      ctx.strokeStyle='#5a4020'; ctx.strokeRect(-10,-6,20,16);
+      break;
+    case 'pipe':
+      ctx.fillStyle='#6a7280'; ctx.fillRect(-14,-4,28,10);
+      ctx.fillStyle='#4a5058'; ctx.beginPath(); ctx.arc(-14,1,5,0,7); ctx.fill();
+      break;
+    case 'cloudpuff':
+      ctx.fillStyle='rgba(255,255,255,0.85)';
+      ctx.beginPath(); ctx.ellipse(0,2,15,8,0,0,7); ctx.ellipse(-8,4,9,6,0,0,7); ctx.ellipse(8,4,9,6,0,0,7); ctx.fill();
+      break;
+    case 'platform':
+      ctx.fillStyle='rgba(255,255,255,0.55)'; ctx.beginPath(); ctx.ellipse(0,4,16,7,0,0,7); ctx.fill();
+      break;
+    case 'crystal':
+      ctx.fillStyle='rgba(150,230,255,0.75)'; ctx.beginPath(); ctx.moveTo(0,-16); ctx.lineTo(8,0); ctx.lineTo(0,14); ctx.lineTo(-8,0); ctx.fill();
+      break;
+    case 'asteroid':
+      ctx.fillStyle='#5a5a68'; ctx.beginPath(); ctx.ellipse(0,2,13,10,0.4,0,7); ctx.fill();
+      ctx.fillStyle='#454550'; ctx.beginPath(); ctx.arc(-3,0,3,0,7); ctx.fill();
+      break;
+    case 'starcluster':
+      ctx.fillStyle='#fff'; for(let i=0;i<5;i++){ const a=i*1.4; ctx.beginPath(); ctx.arc(Math.cos(a)*10,Math.sin(a)*6,1.6,0,7); ctx.fill(); }
+      break;
+    case 'panel':
+      ctx.fillStyle='#20263e'; ctx.fillRect(-12,-8,24,16);
+      ctx.strokeStyle='#4a5aa0'; ctx.strokeRect(-12,-8,24,16);
+      break;
+    case 'reed':
+      ctx.strokeStyle='#5a8a4a'; ctx.lineWidth=2;
+      for(let i=-2;i<=2;i++){ ctx.beginPath(); ctx.moveTo(i*3,8); ctx.lineTo(i*4,-14); ctx.stroke(); }
+      break;
+    case 'mudpool':
+      ctx.fillStyle='#3a3020'; ctx.beginPath(); ctx.ellipse(0,4,15,8,0,0,7); ctx.fill();
+      break;
+    case 'deadtree':
+      ctx.strokeStyle='#4a4038'; ctx.lineWidth=3;
+      ctx.beginPath(); ctx.moveTo(0,10); ctx.lineTo(0,-14); ctx.lineTo(9,-20); ctx.moveTo(0,-6); ctx.lineTo(-8,-14); ctx.stroke();
+      break;
+    case 'flower':
+      ctx.strokeStyle='#4a8a4a'; ctx.beginPath(); ctx.moveTo(0,10); ctx.lineTo(0,-4); ctx.stroke();
+      ctx.fillStyle='#ff9ed1'; for(let i=0;i<5;i++){ const a=i/5*Math.PI*2; ctx.beginPath(); ctx.arc(Math.cos(a)*5,-4+Math.sin(a)*5,3.5,0,7); ctx.fill(); }
+      ctx.fillStyle='#ffe45c'; ctx.beginPath(); ctx.arc(0,-4,3,0,7); ctx.fill();
+      break;
+    case 'mushroom':
+      ctx.fillStyle='#eee'; ctx.fillRect(-2,0,4,10);
+      ctx.fillStyle='#d9455c'; ctx.beginPath(); ctx.arc(0,-2,9,Math.PI,0); ctx.fill();
+      ctx.fillStyle='#fff'; ctx.beginPath(); ctx.arc(-4,-4,1.6,0,7); ctx.arc(3,-5,1.6,0,7); ctx.fill();
+      break;
+    case 'archway':
+      ctx.strokeStyle='#c9a3d9'; ctx.lineWidth=5;
+      ctx.beginPath(); ctx.arc(0,4,13,Math.PI,0); ctx.stroke();
+      break;
+    case 'thornspire':
+      ctx.fillStyle='#241a30'; ctx.beginPath(); ctx.moveTo(0,-22); ctx.lineTo(7,6); ctx.lineTo(-7,6); ctx.fill();
+      ctx.strokeStyle='#4a2e5a'; ctx.beginPath(); ctx.moveTo(-4,-4); ctx.lineTo(-10,-8); ctx.moveTo(4,0); ctx.lineTo(10,-4); ctx.stroke();
+      break;
+    case 'rubble':
+      ctx.fillStyle='#3a3040'; ctx.beginPath(); ctx.ellipse(0,4,13,7,0,0,7); ctx.fill();
+      break;
+    case 'altar':
+      ctx.fillStyle='#2e2438'; ctx.fillRect(-14,-2,28,10);
+      ctx.fillStyle='#8a2be2'; ctx.globalAlpha=0.7; ctx.beginPath(); ctx.arc(0,-6,5,0,7); ctx.fill();
+      break;
+    default: break;
+  }
+  ctx.restore();
+}
+
+/* =====================================================================
+   CREATURE INSTANCES
+   ===================================================================== */
+function knownMoves(level, species){
+  return species.learnset.filter(l=>l.level<=level).map(l=>l.move).slice(-4);
+}
+function computeStats(speciesId, level){
+  const sp = SPECIES_BY_ID[speciesId];
+  return {
+    maxHp: statFor(sp, level, 'hp', sp.isBoss),
+    atk: statFor(sp, level, 'atk', sp.isBoss),
+    def: statFor(sp, level, 'def', sp.isBoss),
+    spd: statFor(sp, level, 'spd', sp.isBoss),
+  };
+}
+function newCreatureInstance(speciesId, level){
+  const sp = SPECIES_BY_ID[speciesId];
+  const stats = computeStats(speciesId, level);
+  return { uid:uid(), speciesId, level, xp:0, hp:stats.maxHp, status:null, statusTurns:0, caughtAt:Date.now() };
+}
+function creatureStats(c){ return computeStats(c.speciesId, c.level); }
+function creatureMoves(c){ return knownMoves(c.level, SPECIES_BY_ID[c.speciesId]); }
+
+/* =====================================================================
+   GAME STATE
+   ===================================================================== */
+const Game = {
+  mode:'title', // title | explore | battle | dialogue
+  world:null, worldIdx:0,
+  player:{ x:0, y:0, color:'#5ee6d4', speed:132, facing:'down', moving:false, animT:0 },
+  camera:{ x:0, y:0 },
+  keys:{}, touchDir:null,
+  party:[], box:[], inventory:{}, coins:250,
+  worldsUnlocked:[true,false,false,false,false,false,false,false,false,false],
+  bossDefeated:[false,false,false,false,false,false,false,false,false,false],
+  questProgress:{}, encyclopedia:{}, npcTalked:{},
+  wildEntities:[], nearbyInteractable:null,
+  lastTime:0, canvas:null, ctx:null,
+  battle:null,
+  saveTimer:0,
+};
+function ensureEncy(id){ if(!Game.encyclopedia[id]) Game.encyclopedia[id]={discovered:false,seen:false,caught:0,highestLevel:0}; return Game.encyclopedia[id]; }
+function addItem(id, qty){ Game.inventory[id]=(Game.inventory[id]||0)+qty; }
+function removeItem(id, qty){ Game.inventory[id]=Math.max(0,(Game.inventory[id]||0)-qty); }
+function itemCount(id){ return Game.inventory[id]||0; }
+function toast(msg){
+  const wrap = document.getElementById('toastWrap');
+  const el = document.createElement('div'); el.className='toast'; el.textContent=msg;
+  wrap.appendChild(el);
+  setTimeout(()=>{ el.style.opacity='0'; el.style.transition='opacity .3s'; setTimeout(()=>el.remove(),320); }, 2400);
+}
+function questProg(id){ if(!Game.questProgress[id]) Game.questProgress[id]={progress:0,completed:false,turnedIn:false}; return Game.questProgress[id]; }
+function advanceQuest(type, worldIdx, npcId){
+  QUESTS.filter(q=>q.type===type && q.worldIdx===worldIdx).forEach(q=>{
+    const p = questProg(q.id);
+    if(p.turnedIn||p.completed) return;
+    if(type==='talk' && q.npcId!==npcId) return;
+    p.progress = Math.min(q.target, p.progress+1);
+    if(p.progress>=q.target){ p.completed=true; toast('✅ Misión completada: '+q.title); }
+  });
+}
+
+/* =====================================================================
+   SPAWN TABLE
+   ===================================================================== */
+function spawnTableFor(worldIdx){
+  const list = SPECIES_BY_WORLD[worldIdx].map(s=>({ species:s, weight:RARITIES[s.rarity].weight }));
+  const specialsAvail = SPECIALS.filter(s=>worldIdx>=s.minWorldIdx);
+  specialsAvail.forEach(s=>list.push({ species:s, weight:RARITIES[s.rarity].weight*0.12 }));
+  const total = list.reduce((a,e)=>a+e.weight,0);
+  return list.map(e=>({ species:e.species, weight:e.weight, pct:e.weight/total })).sort((a,b)=>b.pct-a.pct);
+}
+function rollWildLevel(worldIdx){
+  const lo = 1+worldIdx*9, hi = 9+worldIdx*10;
+  return rndInt(lo,hi);
+}
+function renderRarityPanel(){
+  const table = spawnTableFor(Game.worldIdx);
+  const el = document.getElementById('rarityList');
+  el.innerHTML = table.map(e=>{
+    const known = ensureEncy(e.species.id).discovered;
+    const nm = (known || !e.species.isSpecial) ? e.species.name : '???';
+    const col = RARITIES[e.species.rarity].color;
+    return `<div class="rarityRow"><span class="dot" style="background:${col}"></span><span class="nm">${nm}</span><span class="pc" style="color:${col}">${fmtPct(e.pct)}</span></div>`;
+  }).join('');
+}
+
+/* =====================================================================
+   WILD ENTITIES / WORLD ENTRY
+   ===================================================================== */
+function spawnWildAt(anchor){
+  const table = spawnTableFor(Game.worldIdx);
+  const pick = weightedPick(table.map(e=>({weight:e.pct,species:e.species})));
+  const level = rollWildLevel(Game.worldIdx);
+  return { uid:uid(), anchor, x:anchor.x, y:anchor.y, speciesId:pick.species.id, level,
+    dir:{x:0,y:0}, dirTimer:0, alive:true, respawnAt:0, facing:'down', animT:rnd(0,10) };
+}
+function enterWorld(idx, atSpawn){
+  Game.worldIdx = idx;
+  Game.world = generateWorld(idx);
+  if(atSpawn){ Game.player.x = Game.world.spawnPoint.x; Game.player.y = Game.world.spawnPoint.y; }
+  Game.wildEntities = Game.world.anchors.map(a=>spawnWildAt(a));
+  document.getElementById('worldNameLbl').textContent = WORLDS[idx].emoji+' '+WORLDS[idx].name;
+  renderRarityPanel();
+  Game.camera.x = clamp(Game.player.x-400, 0, Math.max(0,Game.world.pxW-800));
+  Game.camera.y = clamp(Game.player.y-300, 0, Math.max(0,Game.world.pxH-600));
+}
+function bossHere(){
+  if(Game.bossDefeated[Game.worldIdx]) return null;
+  return BOSS_BY_WORLD[Game.worldIdx];
+}
+
+/* =====================================================================
+   INPUT
+   ===================================================================== */
+const MOVE_KEYS = { arrowup:'up',arrowdown:'down',arrowleft:'left',arrowright:'right', w:'up',s:'down',a:'left',d:'right' };
+window.addEventListener('keydown', e=>{
+  Audio_.unlock();
+  const k = e.key.toLowerCase();
+  if(MOVE_KEYS[k]) Game.keys[MOVE_KEYS[k]]=true;
+  if(k==='e' || k===' ') onInteractPressed();
+  if(k==='escape') onEscapePressed();
+  if(k==='i') togglePanel('bag');
+  if(k==='c') togglePanel('ency');
+  if(k==='q') togglePanel('quests');
+  if(k==='p') togglePanel('team');
+});
+window.addEventListener('keyup', e=>{
+  const k = e.key.toLowerCase();
+  if(MOVE_KEYS[k]) Game.keys[MOVE_KEYS[k]]=false;
+});
+function setupTouchControls(){
+  const tc = document.getElementById('touchControls');
+  if('ontouchstart' in window || navigator.maxTouchPoints>0){ tc.classList.add('active'); }
+  document.querySelectorAll('.dbtn').forEach(btn=>{
+    const dir = btn.dataset.dir;
+    const on = ev=>{ ev.preventDefault(); Audio_.unlock(); Game.keys[dir]=true; };
+    const off = ev=>{ ev.preventDefault(); Game.keys[dir]=false; };
+    btn.addEventListener('touchstart',on); btn.addEventListener('touchend',off); btn.addEventListener('touchcancel',off);
+    btn.addEventListener('mousedown',on); btn.addEventListener('mouseup',off); btn.addEventListener('mouseleave',off);
+  });
+  const ab = document.getElementById('actionBtn');
+  ab.addEventListener('click', ()=>{ Audio_.unlock(); onInteractPressed(); });
+}
+
+function onEscapePressed(){
+  if(Game.mode==='dialogue'){ closeDialogue(); return; }
+  const modal = document.getElementById('modalRoot');
+  if(modal.classList.contains('show')){ closeModal(); return; }
+}
+
+function findNearestInteractable(){
+  const P = Game.player; const RANGE = 46;
+  let best=null, bestD=RANGE;
+  const w = Game.world;
+  if(w.portal){
+    const d = dist(P.x,P.y,w.portal.x,w.portal.y);
+    if(d<bestD){ best={type:'portal', obj:w.portal}; bestD=d; }
+  }
+  const boss = bossHere();
+  if(boss){
+    const d = dist(P.x,P.y,w.bossArena.x,w.bossArena.y);
+    if(d<bestD){ best={type:'boss', obj:boss}; bestD=d; }
+  }
+  for(const np of w.npcPositions){
+    if(!np.npc) continue;
+    const d = dist(P.x,P.y,np.x,np.y);
+    if(d<bestD){ best={type:'npc', obj:np}; bestD=d; }
+  }
+  for(const we of Game.wildEntities){
+    if(!we.alive) continue;
+    const d = dist(P.x,P.y,we.x,we.y);
+    if(d<bestD){ best={type:'wild', obj:we}; bestD=d; }
+  }
+  return best;
+}
+function updateInteractPrompt(){
+  const it = findNearestInteractable();
+  Game.nearbyInteractable = it;
+  const el = document.getElementById('interactPrompt');
+  if(!it || Game.mode!=='explore'){ el.classList.remove('show'); return; }
+  let txt = '';
+  if(it.type==='portal') txt = it.obj.toWorld!=null ? 'Pulsa <kbd>E</kbd> para viajar a '+WORLDS[it.obj.toWorld].name : 'Pulsa <kbd>E</kbd> para explorar';
+  else if(it.type==='boss') txt = 'Pulsa <kbd>E</kbd> para desafiar a '+it.obj.name;
+  else if(it.type==='npc') txt = 'Pulsa <kbd>E</kbd> para hablar con '+it.obj.npc.name;
+  else if(it.type==='wild') txt = 'Pulsa <kbd>E</kbd> para observar a '+(ensureEncy(it.obj.speciesId).discovered?SPECIES_BY_ID[it.obj.speciesId].name:'una criatura desconocida');
+  el.innerHTML = txt; el.classList.add('show');
+}
+function onInteractPressed(){
+  if(Game.mode==='dialogue'){ advanceDialogue(); return; }
+  if(Game.mode!=='explore' || isModalOpen()) return;
+  const it = Game.nearbyInteractable;
+  if(!it) return;
+  if(it.type==='portal') attemptPortal(it.obj);
+  else if(it.type==='boss') confirmBossBattle(it.obj);
+  else if(it.type==='npc') interactNpc(it.obj.npc);
+  else if(it.type==='wild') confirmWildBattle(it.obj);
+}
+function attemptPortal(portal){
+  if(portal.toWorld==null){ toast('🎉 ¡Has llegado al límite explorado del universo conocido!'); return; }
+  if(!Game.worldsUnlocked[portal.toWorld]){
+    toast('🔒 Necesitas derrotar al guardián de '+WORLDS[Game.worldIdx].name+' para avanzar.');
+    Audio_.error();
+    return;
+  }
+  Audio_.portal();
+  enterWorld(portal.toWorld, true);
+}
+
+/* =====================================================================
+   MAIN LOOP
+   ===================================================================== */
+function resizeCanvas(){
+  const wrap = document.getElementById('gamewrap');
+  const dpr = Math.min(window.devicePixelRatio||1, 2);
+  ['game'].forEach(id=>{});
+  const c = Game.canvas;
+  c.width = Math.round(wrap.clientWidth*dpr); c.height = Math.round(wrap.clientHeight*dpr);
+  Game.ctx.setTransform(dpr,0,0,dpr,0,0);
+  Game.viewW = wrap.clientWidth; Game.viewH = wrap.clientHeight;
+  const bc = document.getElementById('battleCanvas');
+  const bwrap = document.getElementById('battleCanvasWrap');
+  if(bwrap){ bc.width = Math.round(bwrap.clientWidth*dpr); bc.height = Math.round(bwrap.clientHeight*dpr);
+    bc.getContext('2d').setTransform(dpr,0,0,dpr,0,0); Game.battleViewW=bwrap.clientWidth; Game.battleViewH=bwrap.clientHeight; }
+  const mm = document.getElementById('minimapCanvas');
+  mm.width=130; mm.height=130;
+}
+window.addEventListener('resize', resizeCanvas);
+
+function updateExplore(dt){
+  const P = Game.player;
+  let vx=0, vy=0;
+  if(Game.keys.up) vy-=1; if(Game.keys.down) vy+=1;
+  if(Game.keys.left) vx-=1; if(Game.keys.right) vx+=1;
+  const moving = vx!==0||vy!==0;
+  P.moving = moving;
+  if(moving){
+    const len = Math.hypot(vx,vy); vx/=len; vy/=len;
+    if(Math.abs(vx)>Math.abs(vy)) P.facing = vx>0?'right':'left'; else P.facing = vy>0?'down':'up';
+    const nx = P.x + vx*P.speed*dt, ny = P.y + vy*P.speed*dt;
+    const half = 11;
+    if(!isBlocked(Game.world, nx, P.y, half)) P.x = nx;
+    if(!isBlocked(Game.world, P.x, ny, half)) P.y = ny;
+    P.x = clamp(P.x, half, Game.world.pxW-half); P.y = clamp(P.y, half, Game.world.pxH-half);
+    P.animT += dt*9;
+    Game.stepTimer = (Game.stepTimer||0) - dt;
+    if(Game.stepTimer<=0){ Audio_.step(); Game.stepTimer = 0.28; }
+  }
+  // camera follow
+  const vw = Game.viewW||900, vh = Game.viewH||600;
+  Game.camera.x = clamp(P.x - vw/2, 0, Math.max(0,Game.world.pxW-vw));
+  Game.camera.y = clamp(P.y - vh/2, 0, Math.max(0,Game.world.pxH-vh));
+
+  // wild entities roam
+  for(const we of Game.wildEntities){
+    if(!we.alive){ we.respawnAt -= dt; if(we.respawnAt<=0){ const fresh=spawnWildAt(we.anchor); Object.assign(we,fresh); } continue; }
+    we.dirTimer -= dt;
+    if(we.dirTimer<=0){
+      we.dirTimer = rnd(1.2,2.6);
+      const toAnchor = dist(we.x,we.y,we.anchor.x,we.anchor.y);
+      if(toAnchor>70){ we.dir = { x:(we.anchor.x-we.x)/toAnchor, y:(we.anchor.y-we.y)/toAnchor }; }
+      else if(Math.random()<0.4){ const a=rnd(0,Math.PI*2); we.dir={x:Math.cos(a),y:Math.sin(a)}; }
+      else we.dir = {x:0,y:0};
+    }
+    if(we.dir.x||we.dir.y){
+      const sp = 28;
+      const nx = we.x+we.dir.x*sp*dt, ny = we.y+we.dir.y*sp*dt;
+      if(!isBlocked(Game.world,nx,we.y,10)) we.x=nx; else we.dir.x*=-1;
+      if(!isBlocked(Game.world,we.x,ny,10)) we.y=ny; else we.dir.y*=-1;
+      we.facing = Math.abs(we.dir.x)>Math.abs(we.dir.y) ? (we.dir.x>0?'right':'left') : (we.dir.y>0?'down':'up');
+      we.animT += dt*7;
+    }
+    maybeSpawnAura('wild_'+we.uid, we.x, we.y-14, SPECIES_BY_ID[we.speciesId]);
+  }
+  const boss = bossHere();
+  if(boss) maybeSpawnAura('boss', Game.world.bossArena.x, Game.world.bossArena.y-20, boss);
+
+  updateInteractPrompt();
+}
+
+function worldToScreen(x,y){ return [x-Game.camera.x, y-Game.camera.y]; }
+
+function renderExplore(){
+  const ctx = Game.ctx, vw=Game.viewW||900, vh=Game.viewH||600;
+  const w = Game.world, W = WORLDS[Game.worldIdx];
+  ctx.clearRect(0,0,vw,vh);
+  ctx.fillStyle = W.ground; ctx.fillRect(0,0,vw,vh);
+  const camX=Game.camera.x, camY=Game.camera.y;
+  const tx0 = Math.max(0,Math.floor(camX/TILE)), ty0=Math.max(0,Math.floor(camY/TILE));
+  const tx1 = Math.min(w.N-1, Math.ceil((camX+vw)/TILE)), ty1=Math.min(w.N-1, Math.ceil((camY+vh)/TILE));
+  for(let ty=ty0; ty<=ty1; ty++){
+    for(let tx=tx0; tx<=tx1; tx++){
+      const t = w.tiles[ty][tx];
+      const sx = tx*TILE-camX, sy = ty*TILE-camY;
+      ctx.fillStyle = t==='water'?W.water : t==='path'?W.path : t==='ground2'?W.ground2:W.ground;
+      ctx.fillRect(sx,sy,TILE+1,TILE+1);
+    }
+  }
+  // draw entities sorted by y for depth
+  const drawables = [];
+  for(const d of w.decor){
+    const wx=d.x*TILE+16, wy=d.y*TILE+16;
+    if(wx<camX-40||wx>camX+vw+40||wy<camY-40||wy>camY+vh+40) continue;
+    drawables.push({ y:wy, draw:()=>drawDecor(ctx,d.type,wx-camX,wy-camY,d.ring) });
+  }
+  for(const np of w.npcPositions){
+    if(!np.npc) continue;
+    drawables.push({ y:np.y, draw:()=>{
+      const [sx,sy]=worldToScreen(np.x,np.y);
+      const col = np.npc.role==='shop'?'#ffcf5c':np.npc.role==='quest'?'#5ee68a':'#8fd8ff';
+      drawCube(ctx,sx,sy,30,col,'solido','pococomun',{});
+      ctx.fillStyle='rgba(10,14,24,.75)'; ctx.font='10px sans-serif'; ctx.textAlign='center';
+      const tw = ctx.measureText(np.npc.name).width;
+      ctx.fillRect(sx-tw/2-4,sy-32,tw+8,14);
+      ctx.fillStyle='#fff'; ctx.fillText(np.npc.name, sx, sy-22);
+    }});
+  }
+  for(const we of Game.wildEntities){
+    if(!we.alive) continue;
+    const wx=we.x, wy=we.y;
+    if(wx<camX-40||wx>camX+vw+40||wy<camY-40||wy>camY+vh+40) continue;
+    drawables.push({ y:wy, draw:()=>{
+      const [sx,sy]=worldToScreen(wx,wy);
+      const sp = SPECIES_BY_ID[we.speciesId];
+      const bob = Math.sin(we.animT)*2;
+      drawCube(ctx,sx,sy,26*sp.sizeMod,sp.color,sp.pattern,sp.rarity,{bob, showRing:sp.rarity!=='comun'});
+    }});
+  }
+  const boss = bossHere();
+  if(boss){
+    const bx=w.bossArena.x, by=w.bossArena.y;
+    drawables.push({ y:by, draw:()=>{
+      const [sx,sy]=worldToScreen(bx,by);
+      const bob = Math.sin(performance.now()/450)*3;
+      drawCube(ctx,sx,sy,52*boss.sizeMod,boss.color,boss.pattern,boss.rarity,{bob,showRing:true,glowMul:1.4});
+      ctx.fillStyle='rgba(10,14,24,.8)'; ctx.font='bold 11px sans-serif'; ctx.textAlign='center';
+      ctx.fillText('⚠ '+boss.name, sx, sy-56);
+    }});
+  }
+  if(w.portal){
+    const px=w.portal.x, py=w.portal.y;
+    drawables.push({ y:py-1, draw:()=>{
+      const [sx,sy]=worldToScreen(px,py);
+      const pulse = 1+Math.sin(performance.now()/300)*0.12;
+      ctx.save();
+      ctx.globalAlpha=0.75; ctx.fillStyle = w.portal.toWorld!=null?(Game.worldsUnlocked[w.portal.toWorld]?'#5ee6d4':'#555'):'#ffcf5c';
+      ctx.beginPath(); ctx.ellipse(sx,sy,20*pulse,11*pulse,0,0,7); ctx.fill();
+      ctx.restore();
+    }});
+  }
+  drawables.push({ y:Game.player.y, draw:()=>{
+    const [sx,sy]=worldToScreen(Game.player.x,Game.player.y);
+    const bob = Game.player.moving ? Math.sin(Game.player.animT)*2 : 0;
+    drawCube(ctx,sx,sy,30,Game.player.color,'solido','comun',{bob,glowMul:0});
+  }});
+  drawables.sort((a,b)=>a.y-b.y);
+  for(const d of drawables) d.draw();
+  drawParticlesWorld(ctx, camX, camY);
+}
+
+function renderMinimap(){
+  const c = document.getElementById('minimapCanvas'); const ctx = c.getContext('2d');
+  const w = Game.world; const scale = 130/w.pxW;
+  ctx.clearRect(0,0,130,130);
+  ctx.fillStyle = WORLDS[Game.worldIdx].ground; ctx.fillRect(0,0,130,130);
+  ctx.fillStyle = WORLDS[Game.worldIdx].water;
+  for(let y=0;y<w.N;y+=2) for(let x=0;x<w.N;x+=2) if(w.tiles[y][x]==='water') ctx.fillRect(x*TILE*scale,y*TILE*scale,3,3);
+  ctx.fillStyle = '#ffcf5c';
+  ctx.fillRect(w.portal.x*scale-2,w.portal.y*scale-2,4,4);
+  if(bossHere()){ ctx.fillStyle='#ff5c6c'; ctx.fillRect(w.bossArena.x*scale-3,w.bossArena.y*scale-3,6,6); }
+  ctx.fillStyle = '#5ee68a';
+  for(const we of Game.wildEntities){ if(we.alive) ctx.fillRect(we.x*scale-1.5,we.y*scale-1.5,3,3); }
+  ctx.fillStyle = '#fff';
+  ctx.beginPath(); ctx.arc(Game.player.x*scale, Game.player.y*scale, 3, 0, 7); ctx.fill();
+}
+
+function isModalOpen(){ return document.getElementById('modalRoot').classList.contains('show'); }
+function gameLoop(ts){
+  const dt = Math.min(0.05, (ts-(Game.lastTime||ts))/1000);
+  Game.lastTime = ts;
+  updateParticles(dt);
+  if(Game.mode==='explore' && !isModalOpen()){
+    updateExplore(dt);
+    renderExplore();
+    renderMinimap();
+  } else if(Game.mode==='battle' && Game.battle){
+    updateBattleScene(dt);
+    renderBattleScene();
+  }
+  Game.saveTimer -= dt;
+  if(Game.saveTimer<=0){ saveGame(); Game.saveTimer = 8; }
+  requestAnimationFrame(gameLoop);
+}
+
+/* =====================================================================
+   BATTLE SYSTEM
+   ===================================================================== */
+function firstAlivePartyIdx(){ return Game.party.findIndex(c=>c.hp>0); }
+function confirmWildBattle(we){
+  if(firstAlivePartyIdx()===-1){ toast('⚠️ Tu equipo está debilitado. Cura a tus criaturas antes de combatir.'); return; }
+  startBattle({ isWild:true, wildRef:we, speciesId:we.speciesId, level:we.level });
+}
+function confirmBossBattle(bossSpecies){
+  if(firstAlivePartyIdx()===-1){ toast('⚠️ Tu equipo está debilitado. Cura a tus criaturas antes de combatir.'); return; }
+  const level = 20+Game.worldIdx*11;
+  Audio_.bossRoar();
+  startBattle({ isBoss:true, speciesId:bossSpecies.id, level });
+}
+function startBattle(cfg){
+  const stats = computeStats(cfg.speciesId, cfg.level);
+  const enemy = { speciesId:cfg.speciesId, level:cfg.level, maxHp:stats.maxHp, hp:stats.maxHp,
+    atk:stats.atk, def:stats.def, spd:stats.spd, isWild:!!cfg.isWild, isBoss:!!cfg.isBoss, wildRef:cfg.wildRef,
+    status:null, statusTurns:0 };
+  const pIdx = firstAlivePartyIdx();
+  ensureEncy(cfg.speciesId).seen = true;
+  Game.battle = { enemy, playerIdx:pIdx, state:'menu', log:[], fleeTries:0,
+    playerAnim:{shake:0,lunge:0,flash:0,faintT:0}, enemyAnim:{shake:0,lunge:0,flash:0,faintT:0} };
+  document.getElementById('battleScreen').classList.add('show');
+  Game.mode='battle';
+  resizeCanvas();
+  if(cfg.isBoss) logMsg(`⚠️ ¡El guardián ${nameOf(cfg.speciesId)} bloquea tu camino!`);
+  else logMsg(`¡Un ${nameOf(cfg.speciesId)} salvaje de Nv.${cfg.level} apareció!`);
+  renderBattleHud(); renderBattleMenu();
+}
+function nameOf(speciesId){
+  const sp = SPECIES_BY_ID[speciesId];
+  const known = ensureEncy(speciesId).discovered;
+  return (sp.isSpecial && !known) ? '???' : sp.name;
+}
+function activeCreature(){ return Game.party[Game.battle.playerIdx]; }
+function logMsg(t){
+  Game.battle.log.push(t);
+  const el = document.getElementById('battleLog');
+  el.innerHTML = Game.battle.log.slice(-40).map(l=>`<div>${l}</div>`).join('');
+  el.scrollTop = el.scrollHeight;
+}
+function hpBarClass(hp,max){ const r=hp/max; return r>0.5?'':r>0.2?'mid':'low'; }
+function renderBattleHud(){
+  const b = Game.battle; const eh=document.getElementById('enemyHud'), ph=document.getElementById('playerHud');
+  const esp = SPECIES_BY_ID[b.enemy.speciesId];
+  eh.innerHTML = `<div class="nmrow"><span>${nameOf(b.enemy.speciesId)}${b.isBoss?' 👑':''}</span><span>Nv.${b.enemy.level}</span></div>
+    <div class="hpouter"><div class="hpinner ${hpBarClass(b.enemy.hp,b.enemy.maxHp)}" style="width:${clamp(b.enemy.hp/b.enemy.maxHp*100,0,100)}%"></div></div>
+    <div class="hplabel">${Math.max(0,Math.round(b.enemy.hp))}/${b.enemy.maxHp} PS</div>`;
+  const pc = activeCreature();
+  if(!pc){ ph.innerHTML=''; return; }
+  const psp = SPECIES_BY_ID[pc.speciesId]; const pst = creatureStats(pc);
+  const xpNow = pc.xp, xpNeed = xpToNext(pc.level);
+  ph.innerHTML = `<div class="nmrow"><span>${psp.name}</span><span>Nv.${pc.level}</span></div>
+    <div class="hpouter"><div class="hpinner ${hpBarClass(pc.hp,pst.maxHp)}" style="width:${clamp(pc.hp/pst.maxHp*100,0,100)}%"></div></div>
+    <div class="hplabel">${Math.max(0,Math.round(pc.hp))}/${pst.maxHp} PS</div>
+    <div class="xpouter"><div class="xpinner" style="width:${clamp(xpNow/xpNeed*100,0,100)}%"></div></div>`;
+}
+function moveButton(moveId, onClick){
+  const mv = ATTACKS[moveId];
+  const div = document.createElement('div');
+  div.className='moveBtn';
+  div.innerHTML = `<div class="mv-top"><span>${mv.name}</span><span>${mv.power} PWR</span></div><div class="mv-sub">${mv.type.toUpperCase()} · Prec ${Math.round(mv.acc*100)}%</div>`;
+  div.onclick = onClick;
+  return div;
+}
+function actBtn(label,sub,onClick,wide){
+  const d = document.createElement('div'); d.className='actbtn'+(wide?' wide':'');
+  d.innerHTML = `<div>${label}</div>`+(sub?`<div class="sub">${sub}</div>`:'');
+  d.onclick = onClick;
+  return d;
+}
+function renderBattleMenu(){
+  const wrap = document.getElementById('battleActions'); wrap.innerHTML='';
+  const b = Game.battle;
+  if(b.state==='menu'){
+    wrap.appendChild(actBtn('⚔️ Atacar','Movimientos básicos',()=>openMoveMenu('basic')));
+    wrap.appendChild(actBtn('✨ Ataque Especial','Movimientos avanzados',()=>openMoveMenu('special')));
+    wrap.appendChild(actBtn('🧪 Objeto','Curar a tu criatura',()=>openItemMenu()));
+    wrap.appendChild(actBtn('🎒 Mochila','Cambiar de criatura',()=>openSwitchMenu()));
+    wrap.appendChild(actBtn(b.enemy.isBoss?'🔴 Capturar (bloqueado)':'🔴 Capturar','Usar una esfera',()=>openCaptureMenu(), false));
+    wrap.appendChild(actBtn(b.enemy.isBoss?'🏃 Huir (bloqueado)':'🏃 Huir','Escapar del combate',()=>attemptFlee()));
+  } else if(b.state==='moves'){
+    const pc = activeCreature(); const sp = SPECIES_BY_ID[pc.speciesId];
+    const entries = sp.learnset.filter(l=>l.level<=pc.level);
+    const slice = b.moveTab==='basic'? entries.slice(0,2) : entries.slice(2,4);
+    wrap.style.gridTemplateColumns = '1fr 1fr';
+    if(slice.length===0){ wrap.appendChild(actBtn('Sin movimientos disponibles aún','Sube de nivel para desbloquear',()=>{},true)); }
+    slice.forEach(l=>wrap.appendChild(moveButton(l.move, ()=>useMove(l.move))));
+    wrap.appendChild(actBtn('◀ Volver','',()=>{ b.state='menu'; renderBattleMenu(); }, true));
+  } else if(b.state==='items'){
+    POTION_IDS.forEach(id=>{
+      const qty = itemCount(id);
+      wrap.appendChild(actBtn(ITEMS[id].name, `x${qty} · ${ITEMS[id].desc}`, ()=>useItemInBattle(id), false));
+    });
+    wrap.appendChild(actBtn('◀ Volver','',()=>{ b.state='menu'; renderBattleMenu(); }, true));
+  } else if(b.state==='switch'){
+    Game.party.forEach((c,i)=>{
+      const sp = SPECIES_BY_ID[c.speciesId];
+      const dead = c.hp<=0;
+      wrap.appendChild(actBtn((dead?'💀 ':'🧊 ')+sp.name, `Nv.${c.level} · ${Math.round(c.hp)} PS`, ()=>{ if(dead || i===b.playerIdx) return; b.playerIdx=i; b.state='menu'; renderBattleMenu(); renderBattleHud(); logMsg(`Cambias a ${sp.name}.`); }));
+    });
+    wrap.appendChild(actBtn('◀ Volver','',()=>{ b.state='menu'; renderBattleMenu(); }, true));
+  } else if(b.state==='capture'){
+    SPHERE_IDS.forEach(id=>{
+      const qty = itemCount(id);
+      const pct = captureChance(id, b.enemy);
+      const el = actBtn(ITEMS[id].name, `x${qty} · Éxito estimado ${fmtPct(pct)}`, ()=>{ if(qty<=0){ Audio_.error(); toast('No te quedan '+ITEMS[id].name+'.'); return;} attemptCapture(id); });
+      wrap.appendChild(el);
+    });
+    wrap.appendChild(actBtn('◀ Volver','',()=>{ b.state='menu'; renderBattleMenu(); }, true));
+  }
+}
+function openMoveMenu(tab){ if(Game.battle.enemy.hp<=0) return; Game.battle.state='moves'; Game.battle.moveTab=tab; renderBattleMenu(); }
+function openItemMenu(){ Game.battle.state='items'; renderBattleMenu(); }
+function openSwitchMenu(){ Game.battle.state='switch'; renderBattleMenu(); }
+function openCaptureMenu(){
+  if(Game.battle.enemy.isBoss){ toast('🚫 No se puede capturar a un guardián.'); Audio_.error(); return; }
+  Game.battle.state='capture'; renderBattleMenu();
+}
+function setLock(v){ Game.battleLocked = v; document.getElementById('battleActions').style.pointerEvents = v?'none':'auto'; document.getElementById('battleActions').style.opacity = v?'0.55':'1'; }
+
+function useMove(moveId){
+  if(Game.battleLocked) return;
+  Game.battle.state='menu';
+  setLock(true);
+  runPlayerAction(()=>doAttack('player',moveId), ()=>{ if(!checkBattleEnd()) enemyTurn(); });
+}
+function useItemInBattle(id){
+  if(Game.battleLocked) return;
+  const item = ITEMS[id]; const pc = activeCreature();
+  if(itemCount(id)<=0){ Audio_.error(); toast('No tienes ese objeto.'); return; }
+  Game.battle.state='menu'; setLock(true);
+  const pst = creatureStats(pc);
+  if(item.revive){
+    if(pc.hp>0){ toast('Esa criatura no está debilitada.'); setLock(false); return; }
+    removeItem(id,1); pc.hp = Math.round(pst.maxHp*item.revive);
+    logMsg(`Usas ${item.name}. ${SPECIES_BY_ID[pc.speciesId].name} revive con ${pc.hp} PS.`);
+    Audio_.heal();
+  } else if(item.heal){
+    if(pc.hp<=0){ toast('Esa criatura está debilitada. Usa Revivir.'); setLock(false); return; }
+    removeItem(id,1); pc.hp = Math.min(pst.maxHp, Math.round(pc.hp+pst.maxHp*item.heal));
+    logMsg(`Usas ${item.name}. ${SPECIES_BY_ID[pc.speciesId].name} recupera vida.`);
+    Audio_.heal();
+  } else if(item.cure){
+    removeItem(id,1); pc.status=null;
+    logMsg(`Usas ${item.name}. El estado alterado desaparece.`);
+    Audio_.heal();
+  }
+  renderBattleHud();
+  setTimeout(()=>{ if(!checkBattleEnd()) enemyTurn(); }, 500);
+}
+function attemptFlee(){
+  if(Game.battleLocked) return;
+  if(Game.battle.enemy.isBoss){ toast('🚫 No puedes huir de un combate contra un guardián.'); Audio_.error(); return; }
+  setLock(true);
+  const pc = activeCreature(); const pst = creatureStats(pc);
+  Game.battle.fleeTries++;
+  const chance = clamp(0.5 + (pst.spd-Game.battle.enemy.spd)/100 + Game.battle.fleeTries*0.12, 0.1, 0.95);
+  if(Math.random()<chance){
+    logMsg('Escapas del combate con éxito.'); Audio_.confirm();
+    setTimeout(()=>closeBattle(false),650);
+  } else {
+    logMsg('No has podido escapar...'); Audio_.cancel();
+    setTimeout(()=>{ if(!checkBattleEnd()) enemyTurn(); }, 500);
+  }
+}
+
+function runPlayerAction(actionFn, afterFn){
+  const pc = activeCreature(); const enemy = Game.battle.enemy;
+  const pst = creatureStats(pc);
+  if(pst.spd>=enemy.spd || enemy.hp<=0){ actionFn(); setTimeout(()=>{ afterFn(); }, 700); }
+  else { setTimeout(()=>{ if(enemy.hp>0 && pc.hp>0){ enemyAttack(()=>{ if(!checkBattleEnd()){ actionFn(); setTimeout(afterFn,700); } }); } else { actionFn(); setTimeout(afterFn,700); } }, 300); }
+}
+function tickStatusStart(who){
+  const b = Game.battle;
+  const ent = who==='player'? activeCreature() : b.enemy;
+  if(!ent.status) return true;
+  if(ent.status==='congelado'){ if(Math.random()<0.75){ logMsg(`${who==='player'?SPECIES_BY_ID[ent.speciesId].name:nameOf(ent.speciesId)} está congelado y no puede atacar.`); return false; } }
+  if(ent.status==='paralizado'){ if(Math.random()<0.3){ logMsg(`${who==='player'?SPECIES_BY_ID[ent.speciesId].name:nameOf(ent.speciesId)} está paralizado y no puede moverse.`); return false; } }
+  return true;
+}
+function applyStatusEnd(who){
+  const ent = who==='player'? activeCreature() : Game.battle.enemy;
+  const stats = who==='player'? creatureStats(ent) : {maxHp:ent.maxHp};
+  if(!ent.status || ent.hp<=0) return;
+  if(ent.status==='quemado'){ const d=Math.round(stats.maxHp*0.06); ent.hp=Math.max(0,ent.hp-d); logMsg(`El daño de quemadura resta ${d} PS.`); }
+  if(ent.status==='envenenado'){ const d=Math.round(stats.maxHp*0.09); ent.hp=Math.max(0,ent.hp-d); logMsg(`El veneno resta ${d} PS.`); }
+  renderBattleHud();
+}
+function doAttack(who, moveId){
+  const b = Game.battle;
+  const attackerName = who==='player'? SPECIES_BY_ID[activeCreature().speciesId].name : nameOf(b.enemy.speciesId);
+  if(!tickStatusStart(who)){ return; }
+  const move = ATTACKS[moveId];
+  const atkAnim = who==='player'? b.playerAnim : b.enemyAnim;
+  atkAnim.lunge = 1;
+  if(Math.random()>move.acc){
+    logMsg(`${attackerName} usa ${move.name}, ¡pero falla!`);
+    playSfx(move.sfx);
+    return;
+  }
+  const atkStats = who==='player'? creatureStats(activeCreature()) : b.enemy;
+  const defStats = who==='player'? b.enemy : creatureStats(activeCreature());
+  const atkSpecies = who==='player'? SPECIES_BY_ID[activeCreature().speciesId] : SPECIES_BY_ID[b.enemy.speciesId];
+  const defSpecies = who==='player'? SPECIES_BY_ID[b.enemy.speciesId] : SPECIES_BY_ID[activeCreature().speciesId];
+  const level = who==='player'? activeCreature().level : b.enemy.level;
+  const mult = typeMultiplier(move.type, defSpecies.types);
+  const crit = Math.random()<0.07;
+  let dmg = Math.round(((2*level/5+2)*move.power*(atkStats.atk/Math.max(1,defStats.def)))/50+2);
+  dmg = Math.round(dmg*mult*rnd(0.87,1.0)*(crit?1.6:1));
+  const defAnim = who==='player'? b.enemyAnim : b.playerAnim;
+  defAnim.flash = 1; defAnim.shake = 1;
+  playSfx(move.sfx);
+  if(crit) Audio_.hitCrit(); else Audio_.hit();
+  if(who==='player'){ b.enemy.hp = Math.max(0,b.enemy.hp-dmg); }
+  else { const pc=activeCreature(); pc.hp = Math.max(0,pc.hp-dmg); }
+  let line = `${attackerName} usa ${move.name}`;
+  if(mult>1) line += ' — ¡Es muy eficaz!'; else if(mult<1) line += ' — No es muy eficaz...';
+  if(crit) line += ' ¡Golpe crítico!';
+  logMsg(line+` (${dmg} de daño)`);
+  if(move.status && Math.random()<move.status.chance){
+    const target = who==='player'? b.enemy : activeCreature();
+    if(!target.status){ target.status = move.status.type; logMsg(`${who==='player'?nameOf(b.enemy.speciesId):attackerName} sufre estado: ${move.status.type}.`); }
+  }
+  renderBattleHud();
+}
+function playSfx(sfxName){ if(Audio_[sfxName]) Audio_[sfxName](); }
+function enemyAttack(cb){
+  const b = Game.battle;
+  const sp = SPECIES_BY_ID[b.enemy.speciesId];
+  const moves = knownMoves(b.enemy.level, sp);
+  const mv = weightedPick(moves.map(m=>({weight:ATTACKS[m].power, id:m}))).id;
+  doAttack('enemy', mv);
+  applyStatusEnd('enemy');
+  setTimeout(cb, 700);
+}
+function enemyTurn(){
+  if(Game.battle.enemy.hp<=0 || activeCreature().hp<=0){ setLock(false); checkBattleEnd(); return; }
+  enemyAttack(()=>{
+    applyStatusEnd('player');
+    setLock(false);
+    if(!checkBattleEnd()) renderBattleMenu();
+  });
+}
+function grantXp(creature, amount){
+  creature.xp += amount;
+  let leveled=false;
+  while(creature.xp>=xpToNext(creature.level) && creature.level<100){
+    creature.xp -= xpToNext(creature.level);
+    creature.level++;
+    leveled=true;
+    const st = creatureStats(creature);
+    creature.hp = st.maxHp;
+  }
+  if(leveled){ Audio_.levelUp(); toast(`⭐ ${SPECIES_BY_ID[creature.speciesId].name} sube a Nv.${creature.level}!`); }
+  const ency = ensureEncy(creature.speciesId);
+  ency.highestLevel = Math.max(ency.highestLevel, creature.level);
+}
+function checkBattleEnd(){
+  const b = Game.battle;
+  if(b.enemy.hp<=0){
+    b.enemyAnim.faintT = 1;
+    const sp = SPECIES_BY_ID[b.enemy.speciesId];
+    const xp = xpYield(sp, b.enemy.level);
+    const coins = rndInt(15,40) + b.enemy.level*2 + (b.enemy.isBoss?300:0);
+    logMsg(`${nameOf(b.enemy.speciesId)} se ha debilitado. ¡Ganas ${coins} monedas y ${xp} EXP!`);
+    Audio_.faint();
+    Game.coins += coins;
+    grantXp(activeCreature(), xp);
+    ensureEncy(sp.id).seen = true;
+    if(b.enemy.isWild) advanceQuest('battle', Game.worldIdx);
+    if(b.enemy.isBoss){
+      Audio_.bossDefeat();
+      Game.bossDefeated[Game.worldIdx] = true;
+      const nextIdx = Game.worldIdx+1;
+      if(nextIdx<WORLDS.length) Game.worldsUnlocked[nextIdx]=true;
+      const keyId = 'llave_'+WORLDS[Game.worldIdx].key;
+      addItem(keyId,1);
+      toast(`🔑 ¡Has obtenido la ${ITEMS[keyId].name}!`);
+      advanceQuest('boss', Game.worldIdx);
+    } else if(b.enemy.wildRef){
+      b.enemy.wildRef.alive=false; b.enemy.wildRef.respawnAt = rnd(18,32);
+    }
+    setTimeout(()=>closeBattle(true),1400);
+    renderBattleHud();
+    return true;
+  }
+  if(activeCreature().hp<=0){
+    b.playerAnim.faintT = 1;
+    logMsg(`${SPECIES_BY_ID[activeCreature().speciesId].name} se ha debilitado.`);
+    Audio_.faint();
+    const nextIdx = firstAlivePartyIdx();
+    renderBattleHud();
+    if(nextIdx===-1){
+      logMsg('Todo tu equipo se ha debilitado...');
+      setTimeout(()=>battleLost(),1200);
+      return true;
+    } else {
+      setTimeout(()=>{ b.playerIdx=nextIdx; renderBattleHud(); logMsg(`Sale ${SPECIES_BY_ID[activeCreature().speciesId].name}.`); setLock(false); renderBattleMenu(); },1100);
+      return true;
+    }
+  }
+  return false;
+}
+function battleLost(){
+  toast('😵 Tu equipo ha sido debilitado. Vuelves al pueblo.');
+  Game.party.forEach(c=>{ const st=creatureStats(c); c.hp = Math.max(1,Math.round(st.maxHp*0.3)); });
+  Game.coins = Math.round(Game.coins*0.9);
+  closeBattle(false);
+  Game.player.x = Game.world.spawnPoint.x; Game.player.y = Game.world.spawnPoint.y;
+}
+function closeBattle(won){
+  document.getElementById('battleScreen').classList.remove('show');
+  Game.mode='explore'; Game.battle=null; setLock(false);
+  saveGame();
+}
+
+/* ---------------- CAPTURE ---------------- */
+function captureChance(sphereId, enemy){
+  const sphere = ITEMS[sphereId]; const sp = SPECIES_BY_ID[enemy.speciesId];
+  const hpRatio = clamp(enemy.hp/enemy.maxHp,0,1);
+  const hpBonus = (1-hpRatio)*0.5;
+  const rarityPenalty = { comun:0, pococomun:0.05, raro:0.12, epico:0.2, legendario:0.3, mitico:0.42, omega:0.52, prohibido:0.62, secreto:0.74 }[sp.rarity];
+  const levelPenalty = clamp(enemy.level/320, 0, 0.25);
+  let chance = sphere.captureBase + hpBonus - rarityPenalty - levelPenalty;
+  return clamp(chance, 0.02, sp.rarity==='secreto'?0.35:0.97);
+}
+function attemptCapture(sphereId){
+  if(Game.battleLocked) return;
+  removeItem(sphereId,1);
+  setLock(true);
+  Game.battle.state='menu';
+  const chance = captureChance(sphereId, Game.battle.enemy);
+  const enemy = Game.battle.enemy;
+  logMsg(`Lanzas una ${ITEMS[sphereId].name}...`);
+  let shakes=0;
+  const maxShakes = chance>0.7?3:chance>0.4?2:1;
+  const seq = ()=>{
+    shakes++;
+    Audio_.captureShake();
+    if(shakes<=maxShakes){ setTimeout(seq, 550); }
+    else {
+      const success = Math.random()<chance;
+      setTimeout(()=>{
+        if(success){
+          Audio_.captureSuccess();
+          const inst = newCreatureInstance(enemy.speciesId, enemy.level);
+          if(Game.party.length<6) Game.party.push(inst); else Game.box.push(inst);
+          const ency = ensureEncy(enemy.speciesId);
+          ency.discovered = true; ency.caught++; ency.highestLevel = Math.max(ency.highestLevel, enemy.level);
+          logMsg(`¡Capturado! ${nameOf(enemy.speciesId)} se ha unido a tu colección.`);
+          toast('🎉 ¡Criatura capturada!');
+          advanceQuest('capture', Game.worldIdx);
+          if(enemy.wildRef){ enemy.wildRef.alive=false; enemy.wildRef.respawnAt=rnd(18,32); }
+          setTimeout(()=>closeBattle(true),1200);
+        } else {
+          Audio_.captureFail();
+          logMsg('¡Oh no! La criatura ha escapado de la esfera.');
+          setLock(false);
+          setTimeout(()=>{ if(!checkBattleEnd()) enemyTurn(); },500);
+        }
+      }, 300);
+    }
+  };
+  setTimeout(seq, 400);
+}
+
+/* ---------------- BATTLE SCENE RENDER ---------------- */
+function updateBattleScene(dt){
+  const b = Game.battle; if(!b) return;
+  ['playerAnim','enemyAnim'].forEach(k=>{
+    const a = b[k];
+    a.lunge = Math.max(0, a.lunge-dt*2.6);
+    a.shake = Math.max(0, a.shake-dt*4);
+    a.flash = Math.max(0, a.flash-dt*3);
+  });
+}
+function renderBattleScene(){
+  const c = document.getElementById('battleCanvas'); const ctx = c.getContext('2d');
+  const vw = Game.battleViewW||900, vh = Game.battleViewH||500;
+  const W = WORLDS[Game.worldIdx];
+  const grad = ctx.createLinearGradient(0,0,0,vh);
+  grad.addColorStop(0, shadeColor(W.ground,0.5)); grad.addColorStop(1, W.ground2);
+  ctx.fillStyle = grad; ctx.fillRect(0,0,vw,vh);
+  ctx.fillStyle = 'rgba(0,0,0,0.12)';
+  ctx.beginPath(); ctx.ellipse(vw*0.72, vh*0.38, 90,26,0,0,7); ctx.fill();
+  ctx.beginPath(); ctx.ellipse(vw*0.28, vh*0.78, 110,30,0,0,7); ctx.fill();
+
+  const b = Game.battle; if(!b) return;
+  const esp = SPECIES_BY_ID[b.enemy.speciesId];
+  const ex = vw*0.72 + b.enemyAnim.lunge*-40*(b.enemyAnim.lunge>0?1:0);
+  const ey = vh*0.38 + Math.sin(performance.now()/500)*3 + (b.enemyAnim.shake*rnd(-4,4));
+  ctx.save(); if(b.enemyAnim.faintT>0){ ctx.globalAlpha = clamp(1-b.enemyAnim.faintT,0,1); }
+  if(b.enemyAnim.flash>0.5) ctx.filter='brightness(2)';
+  drawCube(ctx, ex, ey, 78*esp.sizeMod, esp.color, esp.pattern, esp.rarity, {showRing:true});
+  ctx.restore();
+
+  const pc = activeCreature();
+  if(pc){
+    const psp = SPECIES_BY_ID[pc.speciesId];
+    const px = vw*0.28 + b.playerAnim.lunge*40*(b.playerAnim.lunge>0?1:0);
+    const py = vh*0.78 + Math.sin(performance.now()/480+1)*3 + (b.playerAnim.shake*rnd(-4,4));
+    ctx.save(); if(b.playerAnim.faintT>0){ ctx.globalAlpha = clamp(1-b.playerAnim.faintT,0,1); }
+    if(b.playerAnim.flash>0.5) ctx.filter='brightness(2)';
+    drawCube(ctx, px, py, 62, Game.player.color, 'solido', 'comun', {});
+    ctx.restore();
+  }
+}
+
+/* =====================================================================
+   MODAL / PANELS
+   ===================================================================== */
+let currentPanel = null;
+function togglePanel(name){
+  Audio_.select();
+  const modal = document.getElementById('modalRoot');
+  if(modal.classList.contains('show') && currentPanel===name){ closeModal(); return; }
+  currentPanel = name;
+  modal.classList.add('show');
+  renderPanel(name);
+}
+function closeModal(){
+  document.getElementById('modalRoot').classList.remove('show');
+  currentPanel = null;
+}
+function panelShell(title, bodyHtml, tabsHtml){
+  return `<div class="panel-head"><h3>${title}</h3><div class="x" onclick="closeModal()">✕</div></div>
+    ${tabsHtml||''}<div class="panel-body">${bodyHtml}</div>`;
+}
+function renderPanel(name){
+  const el = document.getElementById('panelContent');
+  if(name==='bag') el.innerHTML = bagHtml(bagTab||'esfera');
+  else if(name==='team') el.innerHTML = teamHtml(teamTab||'equipo');
+  else if(name==='ency') el.innerHTML = encyHtml();
+  else if(name==='quests') el.innerHTML = questsHtml();
+  else if(name==='shop') el.innerHTML = shopHtml(shopTab||'esfera');
+}
+let bagTab='esfera';
+function setBagTab(t){ bagTab=t; renderPanel('bag'); }
+function bagHtml(tab){
+  const tabs = `<div class="tabs">
+    <div class="tab ${tab==='esfera'?'active':''}" onclick="setBagTab('esfera')">Esferas</div>
+    <div class="tab ${tab==='pocion'?'active':''}" onclick="setBagTab('pocion')">Pociones</div>
+    <div class="tab ${tab==='material'?'active':''}" onclick="setBagTab('material')">Materiales</div>
+    <div class="tab ${tab==='llave'?'active':''}" onclick="setBagTab('llave')">Llaves</div>
+  </div>`;
+  const ids = tab==='esfera'?SPHERE_IDS:tab==='pocion'?POTION_IDS:tab==='material'?MATERIAL_IDS:WORLDS.map(w=>'llave_'+w.key);
+  const cards = ids.map(id=>{
+    const it = ITEMS[id]; const qty = itemCount(id);
+    return `<div class="itemCard" onclick="bagItemClick('${id}')">
+      <div class="ic" style="background:${it.color};box-shadow:0 0 10px ${it.color}88"></div>
+      <div class="nm">${it.name}</div><div class="qty">x${qty}</div></div>`;
+  }).join('');
+  return panelShell('🎒 Mochila', `<div class="grid">${cards}</div>`, tabs);
+}
+function bagItemClick(id){
+  const it = ITEMS[id];
+  if(it.cat==='pocion'){
+    const alive = Game.party.filter(c=>it.revive? c.hp<=0 : c.hp>0);
+    if(itemCount(id)<=0){ toast('No tienes ese objeto.'); return; }
+    if(alive.length===0){ toast(it.revive?'No hay criaturas debilitadas.':'No hay criaturas que curar.'); return; }
+    const opts = alive.map(c=>{ const sp=SPECIES_BY_ID[c.speciesId]; const st=creatureStats(c); return `<div class="creatureRow" onclick="useItemOutOfBattle('${id}','${c.uid}')">
+      <div class="cube" style="background:${sp.color}"></div><div class="info"><div class="top"><span>${sp.name} Nv.${c.level}</span></div>
+      <div class="hpbar-mini"><i style="width:${clamp(c.hp/st.maxHp*100,0,100)}%"></i></div></div></div>`; }).join('');
+    document.getElementById('panelContent').innerHTML = panelShell('Usar '+it.name, opts+`<div style="margin-top:10px"><button class="btn secondary" onclick="renderPanel('bag')">◀ Volver</button></div>`);
+  } else {
+    toast(it.desc);
+  }
+}
+function useItemOutOfBattle(id, uid_){
+  const it = ITEMS[id]; const c = Game.party.find(c=>c.uid===uid_); if(!c) return;
+  const st = creatureStats(c);
+  if(it.revive){ c.hp = Math.round(st.maxHp*it.revive); toast('✨ '+SPECIES_BY_ID[c.speciesId].name+' ha revivido.'); }
+  else if(it.heal){ c.hp = Math.min(st.maxHp, Math.round(c.hp+st.maxHp*it.heal)); toast('💚 '+SPECIES_BY_ID[c.speciesId].name+' recupera vida.'); }
+  else if(it.cure){ c.status=null; toast('🩹 Estado curado.'); }
+  removeItem(id,1); Audio_.heal();
+  renderPanel('bag');
+}
+let teamTab='equipo';
+function setTeamTab(t){ teamTab=t; renderPanel('team'); }
+function creatureRowHtml(c, idx, source){
+  const sp = SPECIES_BY_ID[c.speciesId]; const st = creatureStats(c);
+  const col = RARITIES[sp.rarity].color;
+  return `<div class="creatureRow" onclick="openCreatureDetail('${c.uid}','${source}')">
+    <div class="cube" style="background:${sp.color};box-shadow:0 0 8px ${col}77"></div>
+    <div class="info"><div class="top"><span>${sp.name} ${c.hp<=0?'💀':''}</span><span class="rarityTag" style="background:${col}33;color:${col}">${RARITIES[sp.rarity].name}</span></div>
+    <div class="hpbar-mini"><i style="width:${clamp(c.hp/st.maxHp*100,0,100)}%"></i></div>
+    <div style="font-size:10.5px;color:var(--textdim);margin-top:2px;">Nv.${c.level} · PS ${Math.max(0,Math.round(c.hp))}/${st.maxHp} · ATQ ${st.atk} · DEF ${st.def} · VEL ${st.spd}</div></div></div>`;
+}
+function teamHtml(tab){
+  const tabs = `<div class="tabs"><div class="tab ${tab==='equipo'?'active':''}" onclick="setTeamTab('equipo')">Equipo (${Game.party.length}/6)</div>
+    <div class="tab ${tab==='almacen'?'active':''}" onclick="setTeamTab('almacen')">Almacén (${Game.box.length})</div></div>`;
+  const list = tab==='equipo'?Game.party:Game.box;
+  const body = list.length===0? '<div style="color:var(--textdim);padding:20px;text-align:center;">No hay criaturas aquí todavía.</div>'
+    : list.map((c,i)=>creatureRowHtml(c,i,tab)).join('');
+  return panelShell('🧊 Tus Criaturas', body, tabs);
+}
+function openCreatureDetail(uid_, source){
+  const arr = source==='equipo'?Game.party:Game.box;
+  const idx = arr.findIndex(c=>c.uid===uid_); const c = arr[idx]; if(!c) return;
+  const sp = SPECIES_BY_ID[c.speciesId]; const st = creatureStats(c);
+  const moves = creatureMoves(c).map(m=>ATTACKS[m].name).join(', ');
+  const canMoveOut = source==='equipo' ? Game.party.length>1 : Game.party.length<6;
+  const btnLabel = source==='equipo' ? 'Enviar al Almacén' : 'Traer al Equipo';
+  document.getElementById('panelContent').innerHTML = panelShell(sp.name, `
+    <div style="text-align:center;margin-bottom:10px;">
+      <div style="width:70px;height:70px;border-radius:14px;background:${sp.color};margin:0 auto 8px;box-shadow:0 0 24px ${RARITIES[sp.rarity].color}99"></div>
+      <div class="rarityTag" style="background:${RARITIES[sp.rarity].color}33;color:${RARITIES[sp.rarity].color}">${RARITIES[sp.rarity].name}</div>
+    </div>
+    <p style="color:var(--textdim);font-size:12.5px;">${sp.desc}</p>
+    <div style="font-size:12.5px;line-height:1.8;">
+      Nivel: <b>${c.level}</b><br>Vida: <b>${Math.max(0,Math.round(c.hp))}/${st.maxHp}</b><br>
+      Ataque: <b>${st.atk}</b> · Defensa: <b>${st.def}</b> · Velocidad: <b>${st.spd}</b><br>
+      Tipo: <b>${sp.types.join(' / ')}</b><br>Movimientos: <b>${moves}</b>
+    </div>
+    <div style="display:flex;gap:8px;margin-top:14px;flex-wrap:wrap;">
+      <button class="btn secondary" onclick="renderPanel('team')">◀ Volver</button>
+      <button class="btn" ${canMoveOut?'':'disabled'} onclick="moveCreature('${uid_}','${source}')">${btnLabel}</button>
+      <button class="btn danger" onclick="releaseCreature('${uid_}','${source}')">Liberar</button>
+    </div>
+  `);
+}
+function moveCreature(uid_, source){
+  const fromArr = source==='equipo'?Game.party:Game.box;
+  const toArr = source==='equipo'?Game.box:Game.party;
+  if(source!=='equipo' && toArr.length>=6){ toast('Tu equipo ya está completo (6).'); return; }
+  if(source==='equipo' && fromArr.length<=1){ toast('Necesitas al menos una criatura en tu equipo.'); return; }
+  const idx = fromArr.findIndex(c=>c.uid===uid_); const [c] = fromArr.splice(idx,1); toArr.push(c);
+  Audio_.select(); renderPanel('team');
+}
+function releaseCreature(uid_, source){
+  const arr = source==='equipo'?Game.party:Game.box;
+  if(source==='equipo' && arr.length<=1){ toast('No puedes liberar a tu última criatura.'); return; }
+  if(!confirm('¿Seguro que quieres liberar a esta criatura? Esta acción no se puede deshacer.')) return;
+  const idx = arr.findIndex(c=>c.uid===uid_); arr.splice(idx,1);
+  Audio_.cancel(); renderPanel('team');
+}
+function encyHtml(){
+  const cards = SPECIES.filter(s=>!s.isBoss).map(sp=>{
+    const e = ensureEncy(sp.id); const disc = e.discovered;
+    const col = RARITIES[sp.rarity].color;
+    const nm = disc?sp.name:'???';
+    return `<div class="encyCard ${disc?'':'undiscovered'}">
+      <div class="cube" style="background:${disc?sp.color:'#333'};box-shadow:0 0 10px ${disc?col:'#000'}88"></div>
+      <div class="nm">${nm}</div>
+      <div class="meta">${disc?RARITIES[sp.rarity].name:'No descubierto'}</div>
+      ${disc?`<div class="meta">Máx Nv.${e.highestLevel} · x${e.caught} capturas</div>`:''}
+    </div>`;
+  }).join('');
+  const total = SPECIES.filter(s=>!s.isBoss).length;
+  const found = SPECIES.filter(s=>!s.isBoss && ensureEncy(s.id).discovered).length;
+  return panelShell(`📖 Colección (${found}/${total})`, `<div class="grid">${cards}</div>`);
+}
+function questsHtml(){
+  const items = QUESTS.map(q=>{
+    const p = questProg(q.id);
+    const pct = clamp(p.progress/q.target*100,0,100);
+    let action = '';
+    if(p.completed && !p.turnedIn) action = `<button class="btn" onclick="claimQuest('${q.id}')">Reclamar recompensa</button>`;
+    else if(p.turnedIn) action = `<span style="color:var(--good);font-size:11.5px;">✔ Completada</span>`;
+    return `<div class="questItem"><div class="title">${q.title} <span style="float:right;font-size:10px;color:var(--textdim)">${WORLDS[q.worldIdx].name}</span></div>
+      <div class="desc">${q.desc}</div><div class="prog">${p.progress}/${q.target}</div>
+      <div class="hpbar-mini" style="margin-top:4px;"><i style="width:${pct}%;background:var(--accent)"></i></div>
+      <div style="margin-top:8px;">${action}</div></div>`;
+  }).join('');
+  return panelShell('📜 Misiones', items);
+}
+function claimQuest(id){
+  const q = QUESTS_BY_ID[id]; const p = questProg(id);
+  if(!p.completed || p.turnedIn) return;
+  p.turnedIn = true;
+  Game.coins += q.reward.coins;
+  (q.reward.items||[]).forEach(it=>addItem(it.id,it.qty));
+  toast(`🎁 Recompensa: ${q.reward.coins} monedas`+((q.reward.items||[]).length?` + objetos`:''));
+  Audio_.chest();
+  renderPanel('quests');
+}
+let shopTab='esfera';
+function setShopTab(t){ shopTab=t; renderPanel('shop'); }
+function shopHtml(tab){
+  const tabs = `<div class="tabs"><div class="tab ${tab==='esfera'?'active':''}" onclick="setShopTab('esfera')">Esferas</div>
+    <div class="tab ${tab==='pocion'?'active':''}" onclick="setShopTab('pocion')">Pociones</div>
+    <div class="tab ${tab==='vender'?'active':''}" onclick="setShopTab('vender')">Vender</div></div>`;
+  let body;
+  if(tab==='vender'){
+    body = `<div class="grid">`+MATERIAL_IDS.map(id=>{
+      const it=ITEMS[id]; const qty=itemCount(id);
+      return `<div class="itemCard" onclick="sellItem('${id}')"><div class="ic" style="background:${it.color}"></div>
+        <div class="nm">${it.name}</div><div class="qty">x${qty} · ${Math.round(it.price/2)}c</div></div>`;
+    }).join('')+`</div>`;
+  } else {
+    const ids = tab==='esfera'?SPHERE_IDS:POTION_IDS;
+    body = `<div class="grid">`+ids.map(id=>{
+      const it=ITEMS[id];
+      return `<div class="itemCard" onclick="buyItem('${id}')"><div class="ic" style="background:${it.color};box-shadow:0 0 10px ${it.color}88"></div>
+        <div class="nm">${it.name}</div><div class="qty">${it.price} monedas</div></div>`;
+    }).join('')+`</div>`;
+  }
+  return panelShell(`🛒 Tienda — ${Game.coins} monedas`, body, tabs);
+}
+function buyItem(id){
+  const it = ITEMS[id];
+  if(Game.coins<it.price){ Audio_.error(); toast('No tienes suficientes monedas.'); return; }
+  Game.coins -= it.price; addItem(id,1); Audio_.buy(); toast(`Compraste ${it.name}.`);
+  renderPanel('shop');
+}
+function sellItem(id){
+  if(itemCount(id)<=0){ Audio_.error(); return; }
+  removeItem(id,1); Game.coins += Math.round(ITEMS[id].price/2); Audio_.buy();
+  renderPanel('shop');
+}
+function openShop(){ Audio_.select(); document.getElementById('modalRoot').classList.add('show'); currentPanel='shop'; renderPanel('shop'); }
+
+/* =====================================================================
+   NPC / DIALOGUE
+   ===================================================================== */
+let Dialogue = null;
+function interactNpc(npc){
+  advanceQuest('talk', Game.worldIdx, npc.id);
+  Dialogue = { npc, idx:0 };
+  Game.mode='dialogue';
+  document.getElementById('dialogueBox').classList.add('show');
+  renderDialogue();
+}
+function renderDialogue(){
+  document.getElementById('dlgWho').textContent = Dialogue.npc.name;
+  document.getElementById('dlgTxt').textContent = Dialogue.npc.lines[Dialogue.idx];
+}
+function advanceDialogue(){
+  if(!Dialogue) return;
+  Dialogue.idx++;
+  if(Dialogue.idx>=Dialogue.npc.lines.length){
+    const role = Dialogue.npc.role;
+    closeDialogue();
+    if(role==='shop') openShop();
+    return;
+  }
+  renderDialogue();
+}
+function closeDialogue(){
+  document.getElementById('dialogueBox').classList.remove('show');
+  Dialogue = null;
+  if(Game.mode==='dialogue') Game.mode='explore';
+}
+document.getElementById('dialogueBox').addEventListener('click', advanceDialogue);
+
+/* =====================================================================
+   SAVE / LOAD
+   ===================================================================== */
+const SAVE_KEY = 'monsterCubeAdventure_save_v1';
+function saveGame(){
+  if(Game.mode==='title') return;
+  const data = {
+    v:1, worldIdx:Game.worldIdx, playerX:Game.player.x, playerY:Game.player.y, playerColor:Game.player.color,
+    party:Game.party, box:Game.box, inventory:Game.inventory, coins:Game.coins,
+    worldsUnlocked:Game.worldsUnlocked, bossDefeated:Game.bossDefeated,
+    questProgress:Game.questProgress, encyclopedia:Game.encyclopedia,
+  };
+  try{ localStorage.setItem(SAVE_KEY, JSON.stringify(data)); }catch(e){}
+}
+function loadGame(){
+  try{
+    const raw = localStorage.getItem(SAVE_KEY);
+    if(!raw) return null;
+    return JSON.parse(raw);
+  }catch(e){ return null; }
+}
+
+/* =====================================================================
+   TITLE / BOOT
+   ===================================================================== */
+const STARTER_COLORS = ['#5ee6d4','#ff8f5c','#ffcf5c','#8f7cff','#ff6b9e','#7cff8f'];
+const STARTER_SPECIES = ['cuboHoja','cuboNieve','cuboChispa'];
+let pickedColor = STARTER_COLORS[0];
+function renderTitle(step){
+  const el = document.getElementById('titleScreen');
+  const hasSave = !!loadGame();
+  if(step==='main'){
+    el.innerHTML = `
+      <div class="titleCube" style="background:radial-gradient(circle at 35% 30%,#8ff5e6,#1f9e8b);box-shadow:0 0 60px #5ee6d488;"></div>
+      <h1>MONSTER CUBE<br>ADVENTURE</h1>
+      <div class="sub">Un mundo abierto de cubos por descubrir</div>
+      <div class="titleBtns">
+        <button class="btn" onclick="renderTitle('color')">🧊 Nueva Partida</button>
+        ${hasSave?`<button class="btn secondary" onclick="continueGame()">▶ Continuar</button>`:''}
+      </div>`;
+  } else if(step==='color'){
+    el.innerHTML = `
+      <h1 style="font-size:22px;">Elige el color de tu cubo</h1>
+      <div class="colorSwatches">${STARTER_COLORS.map(c=>`<div class="swatch ${c===pickedColor?'sel':''}" style="background:${c}" onclick="pickColor('${c}')"></div>`).join('')}</div>
+      <div class="titleBtns"><button class="btn" onclick="renderTitle('starter')">Continuar</button>
+      <button class="btn secondary" onclick="renderTitle('main')">◀ Volver</button></div>`;
+  } else if(step==='starter'){
+    el.innerHTML = `
+      <h1 style="font-size:22px;">Elige tu primera criatura</h1>
+      <div style="display:flex;gap:16px;flex-wrap:wrap;justify-content:center;max-width:600px;">
+        ${STARTER_SPECIES.map(id=>{ const sp=SPECIES_BY_ID[id];
+          return `<div class="itemCard" style="width:140px;padding:16px;cursor:pointer;" onclick="beginGame('${id}')">
+            <div class="ic" style="width:56px;height:56px;background:${sp.color};box-shadow:0 0 16px ${sp.color}99;margin-bottom:8px;"></div>
+            <div class="nm" style="font-size:13px;">${sp.name}</div>
+            <div style="font-size:10.5px;color:var(--textdim);margin-top:4px;">Tipo: ${sp.types.join('/')}</div>
+          </div>`; }).join('')}
+      </div>
+      <button class="btn secondary" onclick="renderTitle('color')">◀ Volver</button>`;
+  }
+}
+function pickColor(c){ pickedColor=c; renderTitle('color'); }
+function beginGame(starterId){
+  Audio_.confirm();
+  Game.player.color = pickedColor;
+  Game.party = [newCreatureInstance(starterId, 5)];
+  ensureEncy(starterId).discovered = true; ensureEncy(starterId).caught=1; ensureEncy(starterId).highestLevel=5;
+  Game.coins = 300;
+  addItem('esferaBasica',5); addItem('pocion',3);
+  document.getElementById('titleScreen').style.display='none';
+  Game.mode='explore';
+  enterWorld(0, true);
+  saveGame();
+}
+function continueGame(){
+  const data = loadGame();
+  if(!data){ renderTitle('main'); return; }
+  Game.party = data.party; Game.box = data.box||[]; Game.inventory = data.inventory||{};
+  Game.coins = data.coins||0; Game.worldsUnlocked = data.worldsUnlocked||Game.worldsUnlocked;
+  Game.bossDefeated = data.bossDefeated||Game.bossDefeated; Game.questProgress = data.questProgress||{};
+  Game.encyclopedia = data.encyclopedia||{}; Game.player.color = data.playerColor||Game.player.color;
+  document.getElementById('titleScreen').style.display='none';
+  Game.mode='explore';
+  enterWorld(data.worldIdx||0, false);
+  Game.player.x = data.playerX||Game.world.spawnPoint.x; Game.player.y = data.playerY||Game.world.spawnPoint.y;
+  Audio_.confirm();
+}
+
+function initTopbar(){
+  document.querySelectorAll('.topbtn[data-panel]').forEach(btn=>{
+    btn.addEventListener('click', ()=>togglePanel(btn.dataset.panel));
+  });
+}
+function updateCoinsLbl(){ document.getElementById('coinLbl').textContent = Game.coins; }
+function boot(){
+  Game.canvas = document.getElementById('game');
+  Game.ctx = Game.canvas.getContext('2d');
+  resizeCanvas();
+  initTopbar();
+  setupTouchControls();
+  renderTitle('main');
+  setInterval(updateCoinsLbl, 250);
+  requestAnimationFrame(gameLoop);
+}
+window.addEventListener('DOMContentLoaded', boot);
+</script>
+
+
+</body>
+</html>
