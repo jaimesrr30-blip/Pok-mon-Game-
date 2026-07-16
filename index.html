@@ -74,6 +74,7 @@ html,body{margin:0;padding:0;height:100%;background:var(--bg);color:var(--text);
 .panel{background:linear-gradient(160deg,#171f33,#0f1421);border:1px solid var(--border);border-radius:16px;
   width:min(620px,92vw);max-height:86vh;display:flex;flex-direction:column;box-shadow:0 20px 60px rgba(0,0,0,.5);
   animation:panelIn .18s ease-out;}
+.panel.wide{width:min(980px,95vw);max-height:90vh;}
 @keyframes panelIn{from{opacity:0;transform:scale(.96) translateY(6px);}to{opacity:1;transform:none;}}
 .panel-head{display:flex;align-items:center;padding:14px 18px;border-bottom:1px solid var(--border);}
 .panel-head h3{margin:0;font-size:16px;color:var(--accent);}
@@ -90,7 +91,7 @@ html,body{margin:0;padding:0;height:100%;background:var(--bg);color:var(--text);
 .itemCard:hover{border-color:var(--accent);transform:translateY(-2px);}
 .itemCard .qty{font-size:10px;color:var(--textdim);}
 .itemCard .nm{font-size:11px;margin-top:2px;line-height:1.2;}
-.itemCard .ic{width:34px;height:34px;margin:0 auto;border-radius:8px;}
+.itemCard .ic{width:38px;height:38px;margin:0 auto;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:19px;}
 
 .creatureRow{display:flex;align-items:center;gap:10px;background:var(--panel2);border:1px solid var(--border);
   border-radius:10px;padding:8px 10px;margin-bottom:7px;cursor:pointer;}
@@ -102,11 +103,18 @@ html,body{margin:0;padding:0;height:100%;background:var(--bg);color:var(--text);
 .hpbar-mini i{display:block;height:100%;background:var(--good);}
 .rarityTag{font-size:9px;padding:1px 6px;border-radius:8px;font-weight:700;}
 
-.encyCard{background:var(--panel2);border:1px solid var(--border);border-radius:10px;padding:10px;text-align:center;}
-.encyCard.undiscovered{opacity:.35;}
-.encyCard .cube{width:44px;height:44px;margin:0 auto 6px;border-radius:9px;}
-.encyCard .nm{font-size:11px;font-weight:700;}
-.encyCard .meta{font-size:9.5px;color:var(--textdim);margin-top:2px;}
+.encyGrid{grid-template-columns:repeat(auto-fill,minmax(128px,1fr));gap:12px;}
+.encyCard{background:var(--panel2);border:1.5px solid var(--border);border-radius:14px;padding:14px 10px;text-align:center;
+  transition:.15s;}
+.encyCard.clickable{cursor:pointer;}
+.encyCard.clickable:hover{transform:translateY(-4px);box-shadow:0 10px 24px rgba(0,0,0,.4);}
+.encyCard.undiscovered{opacity:.45;}
+.encyCard .cube{width:58px;height:58px;margin:0 auto 8px;border-radius:14px;}
+.encyCard .nm{font-size:12.5px;font-weight:800;}
+.encyCard .meta{font-size:10.5px;color:var(--textdim);margin-top:3px;font-weight:700;}
+.encyCard .meta2{font-size:9.5px;color:var(--textdim);margin-top:2px;}
+.encyStats{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin-bottom:8px;}
+.encyStats .pill{background:var(--panel2);border:1px solid var(--border);border-radius:20px;padding:6px 14px;font-size:11.5px;}
 
 .questItem{background:var(--panel2);border:1px solid var(--border);border-radius:10px;padding:10px;margin-bottom:8px;}
 .questItem .title{font-weight:700;font-size:13px;}
@@ -429,19 +437,19 @@ const ATTACKS = {
 
 /* ---------------- ITEMS ---------------- */
 const ITEMS = {
-  esferaBasica:   { name:'Esfera Básica',    cat:'esfera', price:80,   color:'#c94b4b', desc:'Una esfera de captura simple.', captureBase:0.30 },
-  esferaAvanzada: { name:'Esfera Avanzada',  cat:'esfera', price:260,  color:'#4b8ec9', desc:'Mejor ratio de captura.',       captureBase:0.55 },
-  esferaUltra:    { name:'Esfera Ultra',     cat:'esfera', price:640,  color:'#c9a34b', desc:'Alta probabilidad de captura.', captureBase:0.78 },
-  esferaMaestra:  { name:'Esfera Maestra',   cat:'esfera', price:2200, color:'#8a4bc9', desc:'La esfera definitiva.',         captureBase:0.95 },
-  pocion:         { name:'Poción',           cat:'pocion', price:60,   color:'#5ee68a', desc:'Restaura 40% de la vida.',       heal:0.4 },
-  superPocion:    { name:'Superpoción',      cat:'pocion', price:180,  color:'#33c46a', desc:'Restaura 75% de la vida.',       heal:0.75 },
-  pocionMaxima:   { name:'Poción Máxima',    cat:'pocion', price:420,  color:'#189a4c', desc:'Restaura toda la vida.',         heal:1.0 },
-  revivir:        { name:'Revivir',          cat:'pocion', price:300,  color:'#ffcf5c', desc:'Revive a una criatura debilitada al 50%.', revive:0.5 },
-  antidoto:       { name:'Antídoto',         cat:'pocion', price:50,   color:'#7ec9c4', desc:'Cura el veneno.', cure:'envenenado' },
-  fragmentoCristal:{ name:'Fragmento de Cristal', cat:'material', price:40, color:'#9fd8ff', desc:'Material brillante para comerciar.' },
-  escama:         { name:'Escama Antigua',   cat:'material', price:35,  color:'#c7b88a', desc:'Escama de una criatura salvaje.' },
-  pluma:          { name:'Pluma Radiante',   cat:'material', price:45,  color:'#e8e8e8', desc:'Pluma ligera y brillante.' },
-  esenciaOscura:  { name:'Esencia Oscura',   cat:'material', price:70,  color:'#5a3d8a', desc:'Energía condensada del vacío.' },
+  esferaBasica:   { name:'Esfera Básica',    cat:'esfera', price:80,   color:'#c94b4b', emoji:'🔴', desc:'Una esfera de captura simple.', captureBase:0.30 },
+  esferaAvanzada: { name:'Esfera Avanzada',  cat:'esfera', price:260,  color:'#4b8ec9', emoji:'🔵', desc:'Mejor ratio de captura.',       captureBase:0.55 },
+  esferaUltra:    { name:'Esfera Ultra',     cat:'esfera', price:640,  color:'#c9a34b', emoji:'🟠', desc:'Alta probabilidad de captura.', captureBase:0.78 },
+  esferaMaestra:  { name:'Esfera Maestra',   cat:'esfera', price:2200, color:'#8a4bc9', emoji:'🟣', desc:'La esfera definitiva.',         captureBase:0.95 },
+  pocion:         { name:'Poción',           cat:'pocion', price:60,   color:'#5ee68a', emoji:'🧪', desc:'Restaura 40% de la vida.',       heal:0.4 },
+  superPocion:    { name:'Superpoción',      cat:'pocion', price:180,  color:'#33c46a', emoji:'💊', desc:'Restaura 75% de la vida.',       heal:0.75 },
+  pocionMaxima:   { name:'Poción Máxima',    cat:'pocion', price:420,  color:'#189a4c', emoji:'✨', desc:'Restaura toda la vida.',         heal:1.0 },
+  revivir:        { name:'Revivir',          cat:'pocion', price:300,  color:'#ffcf5c', emoji:'💫', desc:'Revive a una criatura debilitada al 50%.', revive:0.5 },
+  antidoto:       { name:'Antídoto',         cat:'pocion', price:50,   color:'#7ec9c4', emoji:'🩹', desc:'Cura el veneno.', cure:'envenenado' },
+  fragmentoCristal:{ name:'Fragmento de Cristal', cat:'material', price:40, color:'#9fd8ff', emoji:'💎', desc:'Material brillante para comerciar.' },
+  escama:         { name:'Escama Antigua',   cat:'material', price:35,  color:'#c7b88a', emoji:'🐚', desc:'Escama de una criatura salvaje.' },
+  pluma:          { name:'Pluma Radiante',   cat:'material', price:45,  color:'#e8e8e8', emoji:'🪶', desc:'Pluma ligera y brillante.' },
+  esenciaOscura:  { name:'Esencia Oscura',   cat:'material', price:70,  color:'#5a3d8a', emoji:'🔮', desc:'Energía condensada del vacío.' },
 };
 
 /* =====================================================================
@@ -638,7 +646,7 @@ function xpYield(species, level){
    ITEMS/KEYS auto-added per world
    ===================================================================== */
 WORLDS.forEach(w=>{
-  ITEMS['llave_'+w.key] = { name:w.keyName, cat:'llave', price:0, color:w.accent, desc:'Abre el camino hacia el siguiente mundo.' };
+  ITEMS['llave_'+w.key] = { name:w.keyName, cat:'llave', price:0, color:w.accent, emoji:'🗝️', desc:'Abre el camino hacia el siguiente mundo.' };
 });
 
 /* =====================================================================
@@ -740,6 +748,12 @@ function drawCube(ctx, cx, cy, size, color, pattern, rarity, opts){
   const bob = opts.bob||0;
   const x = cx-half, y = cy-half+bob;
 
+  // secreto: a slow shimmering rainbow instead of a fixed color
+  if(rarity==='secreto'){
+    const hue = (performance.now()/18)%360;
+    color = `hsl(${hue.toFixed(0)},85%,62%)`;
+  }
+
   // soft ground shadow
   ctx.save();
   ctx.globalAlpha = 0.28;
@@ -748,6 +762,21 @@ function drawCube(ctx, cx, cy, size, color, pattern, rarity, opts){
   ctx.ellipse(cx, cy+half*0.92, half*0.85, half*0.28, 0, 0, 7);
   ctx.fill();
   ctx.restore();
+
+  // epic pulsing aura rings for legendary-tier and above
+  if(RARITY_ORDER.indexOf(rarity) >= RARITY_ORDER.indexOf('legendario')){
+    const t = performance.now()/1000;
+    ctx.save();
+    for(let ring=0; ring<3; ring++){
+      const phase = (t*0.55 + ring/3) % 1;
+      const rr = half*(1.15 + phase*0.9);
+      ctx.globalAlpha = (1-phase)*0.42*(opts.glowMul||1);
+      ctx.strokeStyle = r.color;
+      ctx.lineWidth = 2.4;
+      ctx.beginPath(); ctx.arc(cx, cy+bob, rr, 0, 7); ctx.stroke();
+    }
+    ctx.restore();
+  }
 
   ctx.save();
   if(r.glow>0){
@@ -854,12 +883,14 @@ function generateWorld(idx){
   const bridgeRow = N-8;
   for(let dx=-1;dx<=1;dx++){ tiles[bridgeRow][clamp(rx+dx,0,N-1)]='path'; }
 
-  // town area (bottom section)
+  // town area (bottom section) - always solid ground, never left as river water
+  // (the town sits where the river is bridged/diverted, so NPCs and the portal are always reachable)
   const townY0 = N-7, townY1 = N-2, townX0 = Math.floor(N/2)-6, townX1 = Math.floor(N/2)+6;
-  for(let y=townY0;y<=townY1;y++) for(let x=townX0;x<=townX1;x++){ if(tiles[y] && tiles[y][x]!=='water') tiles[y][x]='path'; }
+  for(let y=townY0;y<=townY1;y++) for(let x=townX0;x<=townX1;x++){ if(tiles[y]) tiles[y][x]='path'; }
 
-  // boss arena (top section)
+  // boss arena (top section) - clear a solid patch so the arena never lands on river water
   const bossY = 3, bossX = Math.floor(N/2);
+  for(let y=bossY-3;y<=bossY+3;y++) for(let x=bossX-5;x<=bossX+5;x++){ if(tiles[y] && tiles[y][x]==='water') tiles[y][x]='ground'; }
 
   const blocked = new Set();
   const decor = [];
@@ -1900,7 +1931,7 @@ function renderBattleScene(){
     const py = vh*0.78 + Math.sin(performance.now()/480+1)*3 + (b.playerAnim.shake*rnd(-4,4));
     ctx.save(); if(b.playerAnim.faintT>0){ ctx.globalAlpha = clamp(1-b.playerAnim.faintT,0,1); }
     if(b.playerAnim.flash>0.5) ctx.filter='brightness(2)';
-    drawCube(ctx, px, py, 62, Game.player.color, 'solido', 'comun', {});
+    drawCube(ctx, px, py, 62*psp.sizeMod, psp.color, psp.pattern, psp.rarity, {showRing:psp.rarity!=='comun'});
     ctx.restore();
   }
 }
@@ -1927,6 +1958,7 @@ function panelShell(title, bodyHtml, tabsHtml){
 }
 function renderPanel(name){
   const el = document.getElementById('panelContent');
+  el.classList.toggle('wide', name==='ency');
   if(name==='bag') el.innerHTML = bagHtml(bagTab||'esfera');
   else if(name==='team') el.innerHTML = teamHtml(teamTab||'equipo');
   else if(name==='ency') el.innerHTML = encyHtml();
@@ -1946,7 +1978,7 @@ function bagHtml(tab){
   const cards = ids.map(id=>{
     const it = ITEMS[id]; const qty = itemCount(id);
     return `<div class="itemCard" onclick="bagItemClick('${id}')">
-      <div class="ic" style="background:${it.color};box-shadow:0 0 10px ${it.color}88"></div>
+      <div class="ic" style="background:${it.color}33;box-shadow:0 0 10px ${it.color}66">${it.emoji||''}</div>
       <div class="nm">${it.name}</div><div class="qty">x${qty}</div></div>`;
   }).join('');
   return panelShell('🎒 Mochila', `<div class="grid">${cards}</div>`, tabs);
@@ -2035,21 +2067,59 @@ function releaseCreature(uid_, source){
   const idx = arr.findIndex(c=>c.uid===uid_); arr.splice(idx,1);
   Audio_.cancel(); renderPanel('team');
 }
-function encyHtml(){
-  const cards = SPECIES.filter(s=>!s.isBoss).map(sp=>{
-    const e = ensureEncy(sp.id); const disc = e.discovered;
-    const col = RARITIES[sp.rarity].color;
-    const nm = disc?sp.name:'???';
-    return `<div class="encyCard ${disc?'':'undiscovered'}">
-      <div class="cube" style="background:${disc?sp.color:'#333'};box-shadow:0 0 10px ${disc?col:'#000'}88"></div>
-      <div class="nm">${nm}</div>
-      <div class="meta">${disc?RARITIES[sp.rarity].name:'No descubierto'}</div>
-      ${disc?`<div class="meta">Máx Nv.${e.highestLevel} · x${e.caught} capturas</div>`:''}
+let encyTab = 0; // world index (number) or 'special'
+function setEncyTab(t){ encyTab = t; renderPanel('ency'); }
+function encyCardHtml(sp){
+  const e = ensureEncy(sp.id); const disc = e.discovered;
+  const col = RARITIES[sp.rarity].color;
+  const nm = disc?sp.name:'???';
+  const bg = disc ? `linear-gradient(160deg, ${col}2e, var(--panel2) 70%)` : 'var(--panel2)';
+  return `<div class="encyCard ${disc?'clickable':'undiscovered'}" style="border-color:${disc?col+'aa':'var(--border)'};background:${bg};"
+      ${disc?`onclick="openEncyDetail('${sp.id}')"`:''}>
+      <div class="cube" style="background:${disc?sp.color:'#2a2f3d'};box-shadow:0 0 ${disc?18:6}px ${disc?col:'#000'}${disc?'cc':'55'}"></div>
+      <div class="nm" style="color:${disc?'var(--text)':'var(--textdim)'}">${nm}</div>
+      <div class="meta" style="color:${disc?col:'var(--textdim)'}">${disc?RARITIES[sp.rarity].name:'No descubierto'}</div>
+      ${disc?`<div class="meta2">Máx Nv.${e.highestLevel} · x${e.caught} capturas</div>`:''}
     </div>`;
-  }).join('');
+}
+function encyHtml(){
+  const tabs = `<div class="tabs">${WORLDS.map((w,i)=>
+      `<div class="tab ${encyTab===i?'active':''}" onclick="setEncyTab(${i})">${w.emoji} ${w.name.split(' ')[0]}</div>`).join('')}
+    <div class="tab ${encyTab==='special'?'active':''}" onclick="setEncyTab('special')">✨ Especiales</div>
+    <div class="tab ${encyTab==='bosses'?'active':''}" onclick="setEncyTab('bosses')">👑 Guardianes</div>
+  </div>`;
+  let list;
+  if(encyTab==='special') list = SPECIALS;
+  else if(encyTab==='bosses') list = BOSS_BY_WORLD;
+  else list = SPECIES.filter(s=>s.worldIdx===encyTab && !s.isBoss && !s.isSpecial);
+  const cards = list.map(encyCardHtml).join('') || `<div style="grid-column:1/-1;text-align:center;color:var(--textdim);padding:30px;">Nada por aquí todavía.</div>`;
   const total = SPECIES.filter(s=>!s.isBoss).length;
   const found = SPECIES.filter(s=>!s.isBoss && ensureEncy(s.id).discovered).length;
-  return panelShell(`📖 Colección (${found}/${total})`, `<div class="grid">${cards}</div>`);
+  return panelShell(`📖 Colección — ${found}/${total} descubiertas`, `<div class="grid encyGrid">${cards}</div>`, tabs);
+}
+function openEncyDetail(id){
+  const sp = SPECIES_BY_ID[id]; const e = ensureEncy(id);
+  const col = RARITIES[sp.rarity].color;
+  document.getElementById('panelContent').innerHTML = panelShell(sp.name, `
+    <div style="max-width:520px;margin:0 auto;">
+      <div style="text-align:center;margin-bottom:16px;">
+        <div style="width:120px;height:120px;border-radius:26px;background:${sp.color};margin:0 auto 12px;
+          box-shadow:0 0 50px ${col}bb, inset -10px -10px 24px rgba(0,0,0,.25), inset 10px 10px 20px rgba(255,255,255,.18);"></div>
+        <div class="rarityTag" style="background:${col}33;color:${col};font-size:11.5px;padding:5px 14px;">${RARITIES[sp.rarity].name}</div>
+      </div>
+      <div class="encyStats">
+        <div class="pill">Máx nivel: <b>${e.highestLevel}</b></div>
+        <div class="pill">Capturas: <b>${e.caught}</b></div>
+        <div class="pill">Tipo: <b>${sp.types.join(' / ')}</b></div>
+      </div>
+      <p style="color:var(--textdim);font-size:13px;line-height:1.6;">${sp.desc}</p>
+      <div style="font-size:12.5px;line-height:2;margin-top:6px;">
+        Movimientos: <b>${sp.moves.map(m=>ATTACKS[m].name).join(', ')}</b><br>
+        Habilidad especial (3 cargas): <b>✨ ${ATTACKS[sp.special].name}</b>
+      </div>
+      <div style="margin-top:16px;"><button class="btn secondary" onclick="renderPanel('ency')">◀ Volver a la Colección</button></div>
+    </div>
+  `);
 }
 function questsHtml(){
   const items = QUESTS.map(q=>{
@@ -2085,14 +2155,14 @@ function shopHtml(tab){
   if(tab==='vender'){
     body = `<div class="grid">`+MATERIAL_IDS.map(id=>{
       const it=ITEMS[id]; const qty=itemCount(id);
-      return `<div class="itemCard" onclick="sellItem('${id}')"><div class="ic" style="background:${it.color}"></div>
+      return `<div class="itemCard" onclick="sellItem('${id}')"><div class="ic" style="background:${it.color}33">${it.emoji||''}</div>
         <div class="nm">${it.name}</div><div class="qty">x${qty} · ${Math.round(it.price/2)}c</div></div>`;
     }).join('')+`</div>`;
   } else {
     const ids = tab==='esfera'?SPHERE_IDS:POTION_IDS;
     body = `<div class="grid">`+ids.map(id=>{
       const it=ITEMS[id];
-      return `<div class="itemCard" onclick="buyItem('${id}')"><div class="ic" style="background:${it.color};box-shadow:0 0 10px ${it.color}88"></div>
+      return `<div class="itemCard" onclick="buyItem('${id}')"><div class="ic" style="background:${it.color}33;box-shadow:0 0 10px ${it.color}66">${it.emoji||''}</div>
         <div class="nm">${it.name}</div><div class="qty">${it.price} monedas</div></div>`;
     }).join('')+`</div>`;
   }
