@@ -144,11 +144,15 @@ html,body{margin:0;padding:0;height:100%;background:var(--bg);color:var(--text);
 .xpinner{height:100%;background:var(--accent);}
 .hplabel{font-size:10px;color:var(--textdim);margin-top:2px;text-align:right;}
 
+/* Fixed height on purpose: battleLog/battleActions content must never grow this
+   box, or the canvas above shrinks turn by turn and the action buttons get pushed
+   out of view. Both children scroll internally instead. */
 #battleMenu{background:linear-gradient(180deg,#141a29,#0d1119);border-top:1px solid var(--border);
-  padding:10px 14px;display:flex;gap:10px;flex-shrink:0;min-height:150px;}
+  padding:10px 14px;display:flex;gap:10px;flex-shrink:0;height:200px;}
 #battleLog{flex:1;background:var(--panel2);border:1px solid var(--border);border-radius:10px;padding:10px 12px;
-  font-size:13px;line-height:1.5;overflow-y:auto;}
-#battleActions{width:340px;display:flex;flex-direction:column;gap:6px;flex-shrink:0;justify-content:center;}
+  font-size:13px;line-height:1.5;overflow-y:auto;height:100%;min-height:0;}
+#battleActions{width:340px;display:flex;flex-direction:column;gap:6px;flex-shrink:0;justify-content:flex-start;
+  height:100%;min-height:0;overflow-y:auto;}
 #battleActions .btnRow{display:flex;gap:6px;}
 #battleActions .btnRow.grid2{display:grid;grid-template-columns:1fr 1fr;}
 .actbtn{background:var(--panel2);border:1px solid var(--border);border-radius:9px;color:var(--text);
@@ -194,9 +198,9 @@ html,body{margin:0;padding:0;height:100%;background:var(--bg);color:var(--text);
 ::-webkit-scrollbar-track{background:transparent;}
 
 @media(max-width:720px){
-  #battleMenu{flex-direction:column;padding:6px 10px;gap:5px;min-height:0;}
-  #battleActions{width:100%;gap:4px;}
-  #battleLog{max-height:44px;padding:5px 8px;font-size:11px;}
+  #battleMenu{flex-direction:column;padding:6px 10px;gap:5px;height:230px;}
+  #battleActions{width:100%;gap:4px;height:auto;flex:1;min-height:0;}
+  #battleLog{height:44px;flex:0 0 44px;padding:5px 8px;font-size:11px;}
   .battleHud{width:150px;font-size:11px;}
   #rarityPanel{width:150px;}
 }
@@ -928,6 +932,19 @@ function generateWorld(idx){
     anchors.push({x:x*TILE+TILE/2, y:y*TILE+TILE/2});
   }
 
+  // chest spots (avoid town/arena/water/blocked/spawn anchors)
+  const chests = [];
+  tries = 0;
+  while(chests.length<7 && tries<800){
+    tries++;
+    const x = Math.floor(rng()*(N-6))+3, y = Math.floor(rng()*(N-10))+5;
+    if(y>=townY0-2 && x>=townX0-2 && x<=townX1+2) continue;
+    if(y<bossY+4 && Math.abs(x-bossX)<6) continue;
+    if(tiles[y][x]==='water') continue;
+    if(blocked.has(key(x,y))) continue;
+    chests.push({ id:'w'+idx+'_chest'+chests.length, x:x*TILE+TILE/2, y:y*TILE+TILE/2 });
+  }
+
   const npcsHere = NPCS.filter(n=>n.worldIdx===idx);
   const npcPositions = [
     { npc:npcsHere[0], x:(townX0+2)*TILE+16, y:(townY0+1)*TILE+16 },
@@ -940,7 +957,7 @@ function generateWorld(idx){
   const portal = { x:Math.floor(N/2)*TILE+16, y:(townY1)*TILE+16, toWorld: idx+1<WORLDS.length?idx+1:null };
   const bossArena = { x:bossX*TILE+16, y:bossY*TILE+16 };
 
-  const data = { idx, N, tiles, decor, blocked, anchors, npcPositions, portal, bossArena,
+  const data = { idx, N, tiles, decor, blocked, anchors, chests, npcPositions, portal, bossArena,
     pxW:N*TILE, pxH:N*TILE, spawnPoint:{x:Math.floor(N/2)*TILE+16, y:(townY0+2)*TILE+16} };
   WORLD_CACHE[idx] = data;
   return data;
@@ -955,6 +972,35 @@ function isBlocked(world, px, py, halfSize){
     if(world.blocked.has(tx+','+ty)) return true;
   }
   return false;
+}
+function drawChest(ctx, sx, sy, available){
+  ctx.save();
+  ctx.translate(sx,sy);
+  ctx.globalAlpha = 0.28; ctx.fillStyle='#000';
+  ctx.beginPath(); ctx.ellipse(0,13,15,6,0,0,7); ctx.fill();
+  ctx.globalAlpha = 1;
+  if(available){
+    const bob = Math.sin(performance.now()/380)*2;
+    ctx.translate(0,bob);
+    ctx.shadowColor = '#ffcf5c'; ctx.shadowBlur = 14;
+    ctx.fillStyle = '#8a5a2e';
+    roundRectPath(ctx,-15,-4,30,16,3); ctx.fill();
+    ctx.fillStyle = '#a8703c';
+    roundRectPath(ctx,-15,-14,30,11,4); ctx.fill();
+    ctx.fillStyle = '#ffcf5c';
+    ctx.fillRect(-3,-6,6,7);
+    ctx.strokeStyle = '#5a3a1e'; ctx.lineWidth=1.4;
+    ctx.strokeRect(-15,-4,30,16);
+  } else {
+    ctx.globalAlpha = 0.55;
+    ctx.fillStyle = '#4a4038';
+    roundRectPath(ctx,-15,-2,30,14,3); ctx.fill();
+    ctx.fillStyle = '#5c5148';
+    roundRectPath(ctx,-15,-10,30,9,4); ctx.fill();
+    ctx.strokeStyle = '#2e2820'; ctx.lineWidth=1.2;
+    ctx.strokeRect(-15,-2,30,14);
+  }
+  ctx.restore();
 }
 function drawDecor(ctx, type, sx, sy, ring){
   ctx.save();
@@ -1115,7 +1161,7 @@ const Game = {
   party:[], box:[], inventory:{}, coins:250,
   worldsUnlocked:[true,false,false,false,false,false,false,false,false,false],
   bossDefeated:[false,false,false,false,false,false,false,false,false,false],
-  questProgress:{}, encyclopedia:{}, npcTalked:{},
+  questProgress:{}, encyclopedia:{}, npcTalked:{}, chestState:{},
   wildEntities:[], nearbyInteractable:null,
   lastTime:0, canvas:null, ctx:null,
   battle:null,
@@ -1193,6 +1239,38 @@ function bossHere(){
 }
 
 /* =====================================================================
+   CHESTS - scattered loot that refills itself over real time
+   ===================================================================== */
+const CHEST_COOLDOWN_MS = 3*60*1000;
+function chestAvailable(id){
+  const t = Game.chestState[id];
+  return !t || Date.now()>=t;
+}
+function chestTimeLeft(id){
+  const t = Game.chestState[id]; if(!t) return '0:00';
+  const ms = Math.max(0, t-Date.now());
+  const s = Math.ceil(ms/1000);
+  return Math.floor(s/60)+':'+String(s%60).padStart(2,'0');
+}
+function openChest(chest){
+  if(!chestAvailable(chest.id)){ Audio_.error(); toast('📦 Vacío. Vuelve en '+chestTimeLeft(chest.id)+'.'); return; }
+  const coins = rndInt(25,70) + Game.worldIdx*12;
+  Game.coins += coins;
+  let itemLine = '';
+  if(Math.random()<0.55){
+    const pool = Math.random()<0.5 ? POTION_IDS.slice(0,3) : [...MATERIAL_IDS, 'esferaBasica','esferaAvanzada'];
+    const id = choice(pool);
+    addItem(id,1);
+    itemLine = ' y '+ITEMS[id].name;
+  }
+  Game.chestState[chest.id] = Date.now()+CHEST_COOLDOWN_MS;
+  Audio_.chest();
+  toast(`📦 ¡Cofre abierto! +${coins} monedas${itemLine}`);
+  spawnParticle(chest.x, chest.y-10, '#ffcf5c', {life:0.8,size:3,vy:-40});
+  saveGame();
+}
+
+/* =====================================================================
    INPUT
    ===================================================================== */
 const MOVE_KEYS = { arrowup:'up',arrowdown:'down',arrowleft:'left',arrowright:'right', w:'up',s:'down',a:'left',d:'right' };
@@ -1254,6 +1332,10 @@ function findNearestInteractable(){
     const d = dist(P.x,P.y,we.x,we.y);
     if(d<bestD){ best={type:'wild', obj:we}; bestD=d; }
   }
+  for(const ch of w.chests){
+    const d = dist(P.x,P.y,ch.x,ch.y);
+    if(d<bestD){ best={type:'chest', obj:ch}; bestD=d; }
+  }
   return best;
 }
 function updateInteractPrompt(){
@@ -1266,6 +1348,7 @@ function updateInteractPrompt(){
   else if(it.type==='boss') txt = 'Pulsa <kbd>E</kbd> para desafiar a '+it.obj.name;
   else if(it.type==='npc') txt = 'Pulsa <kbd>E</kbd> para hablar con '+it.obj.npc.name;
   else if(it.type==='wild') txt = 'Pulsa <kbd>E</kbd> para observar a '+(ensureEncy(it.obj.speciesId).discovered?SPECIES_BY_ID[it.obj.speciesId].name:'una criatura desconocida');
+  else if(it.type==='chest') txt = chestAvailable(it.obj.id) ? 'Pulsa <kbd>E</kbd> para abrir el cofre' : 'Cofre vacío · vuelve en '+chestTimeLeft(it.obj.id);
   el.innerHTML = txt; el.classList.add('show');
 }
 function onInteractPressed(){
@@ -1277,6 +1360,7 @@ function onInteractPressed(){
   else if(it.type==='boss') confirmBossBattle(it.obj);
   else if(it.type==='npc') interactNpc(it.obj.npc);
   else if(it.type==='wild') confirmWildBattle(it.obj);
+  else if(it.type==='chest') openChest(it.obj);
 }
 function attemptPortal(portal){
   if(portal.toWorld==null){ toast('🎉 ¡Has llegado al límite explorado del universo conocido!'); return; }
@@ -1409,6 +1493,13 @@ function renderExplore(){
       drawCube(ctx,sx,sy,26*sp.sizeMod,sp.color,sp.pattern,sp.rarity,{bob, showRing:sp.rarity!=='comun'});
     }});
   }
+  for(const ch of w.chests){
+    if(ch.x<camX-40||ch.x>camX+vw+40||ch.y<camY-40||ch.y>camY+vh+40) continue;
+    drawables.push({ y:ch.y, draw:()=>{
+      const [sx,sy]=worldToScreen(ch.x,ch.y);
+      drawChest(ctx, sx, sy, chestAvailable(ch.id));
+    }});
+  }
   const boss = bossHere();
   if(boss){
     const bx=w.bossArena.x, by=w.bossArena.y;
@@ -1453,6 +1544,7 @@ function renderMinimap(){
   if(bossHere()){ ctx.fillStyle='#ff5c6c'; ctx.fillRect(w.bossArena.x*scale-3,w.bossArena.y*scale-3,6,6); }
   ctx.fillStyle = '#5ee68a';
   for(const we of Game.wildEntities){ if(we.alive) ctx.fillRect(we.x*scale-1.5,we.y*scale-1.5,3,3); }
+  for(const ch of w.chests){ ctx.fillStyle = chestAvailable(ch.id)?'#ffcf5c':'#5c5148'; ctx.fillRect(ch.x*scale-2,ch.y*scale-2,4,4); }
   ctx.fillStyle = '#fff';
   ctx.beginPath(); ctx.arc(Game.player.x*scale, Game.player.y*scale, 3, 0, 7); ctx.fill();
 }
@@ -1580,8 +1672,8 @@ function renderBattleMenu(){
     wrap.appendChild(btnRow(specBtn));
 
     wrap.appendChild(btnRow(
-      actBtn('🧪 Objeto',null,()=>openItemMenu()),
-      actBtn('🎒 Cambiar',null,()=>openSwitchMenu()),
+      actBtn('🎒 Mochila',null,()=>openItemMenu()),
+      actBtn('🔄 Equipo',null,()=>openSwitchMenu()),
       actBtn(b.enemy.isBoss?'🔴 Capturar 🚫':'🔴 Capturar',null,()=>openCaptureMenu()),
       actBtn(b.enemy.isBoss?'🏃 Huir 🚫':'🏃 Huir',null,()=>attemptFlee())
     ));
@@ -2235,7 +2327,7 @@ function saveGame(){
     v:1, worldIdx:Game.worldIdx, playerX:Game.player.x, playerY:Game.player.y, playerColor:Game.player.color,
     party:Game.party, box:Game.box, inventory:Game.inventory, coins:Game.coins,
     worldsUnlocked:Game.worldsUnlocked, bossDefeated:Game.bossDefeated,
-    questProgress:Game.questProgress, encyclopedia:Game.encyclopedia,
+    questProgress:Game.questProgress, encyclopedia:Game.encyclopedia, chestState:Game.chestState,
   };
   try{ localStorage.setItem(SAVE_KEY, JSON.stringify(data)); }catch(e){}
 }
@@ -2305,6 +2397,7 @@ function continueGame(){
   Game.coins = data.coins||0; Game.worldsUnlocked = data.worldsUnlocked||Game.worldsUnlocked;
   Game.bossDefeated = data.bossDefeated||Game.bossDefeated; Game.questProgress = data.questProgress||{};
   Game.encyclopedia = data.encyclopedia||{}; Game.player.color = data.playerColor||Game.player.color;
+  Game.chestState = data.chestState||{};
   document.getElementById('titleScreen').style.display='none';
   Game.mode='explore';
   enterWorld(data.worldIdx||0, false);
