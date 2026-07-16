@@ -137,23 +137,25 @@ html,body{margin:0;padding:0;height:100%;background:var(--bg);color:var(--text);
 .hplabel{font-size:10px;color:var(--textdim);margin-top:2px;text-align:right;}
 
 #battleMenu{background:linear-gradient(180deg,#141a29,#0d1119);border-top:1px solid var(--border);
-  padding:10px 14px;display:flex;gap:10px;flex-shrink:0;min-height:150px;max-height:44vh;}
+  padding:10px 14px;display:flex;gap:10px;flex-shrink:0;min-height:150px;}
 #battleLog{flex:1;background:var(--panel2);border:1px solid var(--border);border-radius:10px;padding:10px 12px;
   font-size:13px;line-height:1.5;overflow-y:auto;}
-#battleActions{width:290px;display:grid;grid-template-columns:1fr 1fr;gap:7px;flex-shrink:0;overflow-y:auto;
-  align-content:start;padding-right:2px;}
-.actbtn{background:var(--panel2);border:1px solid var(--border);border-radius:10px;color:var(--text);
-  font-weight:700;font-size:13px;cursor:pointer;display:flex;flex-direction:column;align-items:center;
-  justify-content:center;gap:2px;transition:.12s;}
+#battleActions{width:340px;display:flex;flex-direction:column;gap:6px;flex-shrink:0;justify-content:center;}
+#battleActions .btnRow{display:flex;gap:6px;}
+#battleActions .btnRow.grid2{display:grid;grid-template-columns:1fr 1fr;}
+.actbtn{background:var(--panel2);border:1px solid var(--border);border-radius:9px;color:var(--text);
+  font-weight:700;font-size:12px;cursor:pointer;display:flex;flex-direction:column;align-items:center;
+  justify-content:center;gap:1px;transition:.12s;padding:6px 4px;flex:1;text-align:center;}
 .actbtn:hover{border-color:var(--accent);background:#232f4c;}
 .actbtn:active{transform:scale(.95);}
-.actbtn .sub{font-size:9.5px;color:var(--textdim);font-weight:400;}
-.actbtn.wide{grid-column:1/3;}
-.moveBtn{background:var(--panel2);border:1px solid var(--border);border-radius:10px;padding:8px;text-align:left;
-  cursor:pointer;}
+.actbtn .sub{font-size:9px;color:var(--textdim);font-weight:400;}
+.actbtn.wide{flex:1 1 100%;}
+.moveBtn{background:var(--panel2);border:1px solid var(--border);border-radius:9px;padding:5px 8px;text-align:left;
+  cursor:pointer;flex:1;min-width:0;}
 .moveBtn:hover{border-color:var(--accent);}
-.moveBtn .mv-top{display:flex;justify-content:space-between;font-size:12.5px;font-weight:700;}
-.moveBtn .mv-sub{font-size:10px;color:var(--textdim);}
+.moveBtn .mv-top{display:flex;justify-content:space-between;font-size:12px;font-weight:700;gap:4px;}
+.moveBtn .mv-top span:first-child{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.moveBtn .mv-sub{font-size:9px;color:var(--textdim);}
 
 /* ---------- DIALOGUE ---------- */
 #dialogueBox{position:absolute;left:50%;bottom:22px;transform:translateX(-50%);width:min(560px,92vw);
@@ -184,9 +186,18 @@ html,body{margin:0;padding:0;height:100%;background:var(--bg);color:var(--text);
 ::-webkit-scrollbar-track{background:transparent;}
 
 @media(max-width:720px){
-  #battleActions{width:180px;grid-template-columns:1fr;}
+  #battleMenu{flex-direction:column;padding:6px 10px;gap:5px;min-height:0;}
+  #battleActions{width:100%;gap:4px;}
+  #battleLog{max-height:44px;padding:5px 8px;font-size:11px;}
   .battleHud{width:150px;font-size:11px;}
   #rarityPanel{width:150px;}
+}
+@media(max-width:480px){
+  .actbtn{font-size:10px;padding:4px 2px;}
+  .moveBtn{padding:3px 6px;}
+  .moveBtn .mv-top{font-size:10.5px;}
+  .moveBtn .mv-sub{font-size:8px;}
+  #battleActions .btnRow{gap:4px;}
 }
 @media(max-width:480px){
   .topbtn{font-size:10.5px;padding:5px 7px;}
@@ -891,7 +902,8 @@ function generateWorld(idx){
     { npc:npcsHere[0], x:(townX0+2)*TILE+16, y:(townY0+1)*TILE+16 },
     { npc:npcsHere[1], x:(townX1-2)*TILE+16, y:(townY0+1)*TILE+16 },
     { npc:npcsHere[2], x:(townX0+2)*TILE+16, y:(townY1-1)*TILE+16 },
-    { npc:npcsHere[3], x:(townX1-2)*TILE+16, y:(townY1-1)*TILE+16 },
+    // hospital is placed right next to the spawn point so it's impossible to miss on arrival
+    { npc:npcsHere[3], x:(Math.floor(N/2)+3)*TILE+16, y:(townY0+2)*TILE+16 },
   ];
 
   const portal = { x:Math.floor(N/2)*TILE+16, y:(townY1)*TILE+16, toWorld: idx+1<WORLDS.length?idx+1:null };
@@ -1510,40 +1522,51 @@ function actBtn(label,sub,onClick,wide){
   d.onclick = onClick;
   return d;
 }
+function btnRow(...children){
+  const d = document.createElement('div'); d.className='btnRow';
+  children.forEach(c=>d.appendChild(c));
+  return d;
+}
 function renderBattleMenu(){
   const wrap = document.getElementById('battleActions'); wrap.innerHTML='';
-  wrap.style.gridTemplateColumns = '1fr 1fr';
   const b = Game.battle;
   if(b.state==='menu'){
+    // Compact 3-row layout: 3 attacks / special ability / quick-action icons.
+    // Capturar+Huir always sit in the last row so they're never scrolled out of view.
     const pc = activeCreature(); const sp = SPECIES_BY_ID[pc.speciesId];
-    sp.moves.forEach(m=>wrap.appendChild(moveButton(m, ()=>useMove(m))));
+    wrap.appendChild(btnRow(...sp.moves.map(m=>moveButton(m, ()=>useMove(m)))));
+
     const specMv = ATTACKS[sp.special];
     const charge = b.playerCharge||0;
     const ready = charge>=3;
     const specBtn = document.createElement('div');
-    specBtn.className = 'moveBtn'+(ready?' special-ready':'');
-    if(ready) specBtn.style.cssText='border-color:var(--accent2);box-shadow:0 0 12px #ffcf5c55;';
+    specBtn.className = 'moveBtn';
+    specBtn.style.flex = '1';
+    if(ready) specBtn.style.cssText='flex:1;border-color:var(--accent2);box-shadow:0 0 12px #ffcf5c55;';
     specBtn.innerHTML = `<div class="mv-top"><span>✨ ${specMv.name}</span><span>${specMv.power} PWR</span></div>
-      <div class="mv-sub">${ready?'¡Lista para usar! · '+specMv.type.toUpperCase() : 'Carga '+charge+'/3 · se acumula 1 por turno'}</div>`;
+      <div class="mv-sub">${ready?'¡Lista para usar! · '+specMv.type.toUpperCase() : 'Carga '+charge+'/3 · +1 gratis cada turno'}</div>`;
     specBtn.onclick = ()=>{ if(!ready){ Audio_.error(); toast('Necesitas 3 cargas para usar la habilidad especial (ganas 1 gratis cada turno).'); return; } useSpecialMove(); };
-    wrap.appendChild(specBtn);
-    wrap.appendChild(actBtn('🧪 Objeto','Curar a tu criatura',()=>openItemMenu()));
-    wrap.appendChild(actBtn('🎒 Mochila','Cambiar de criatura',()=>openSwitchMenu()));
-    wrap.appendChild(actBtn(b.enemy.isBoss?'🔴 Capturar (bloqueado)':'🔴 Capturar','Usar una esfera',()=>openCaptureMenu(), false));
-    wrap.appendChild(actBtn(b.enemy.isBoss?'🏃 Huir (bloqueado)':'🏃 Huir','Escapar del combate',()=>attemptFlee()));
+    wrap.appendChild(btnRow(specBtn));
+
+    wrap.appendChild(btnRow(
+      actBtn('🧪 Objeto',null,()=>openItemMenu()),
+      actBtn('🎒 Cambiar',null,()=>openSwitchMenu()),
+      actBtn(b.enemy.isBoss?'🔴 Capturar 🚫':'🔴 Capturar',null,()=>openCaptureMenu()),
+      actBtn(b.enemy.isBoss?'🏃 Huir 🚫':'🏃 Huir',null,()=>attemptFlee())
+    ));
   } else if(b.state==='items'){
     POTION_IDS.forEach(id=>{
       const qty = itemCount(id);
-      wrap.appendChild(actBtn(ITEMS[id].name, `x${qty} · ${ITEMS[id].desc}`, ()=>useItemInBattle(id), false));
+      wrap.appendChild(actBtn(ITEMS[id].name, `x${qty} · ${ITEMS[id].desc}`, ()=>useItemInBattle(id)));
     });
-    wrap.appendChild(actBtn('◀ Volver','',()=>{ b.state='menu'; renderBattleMenu(); }, true));
+    wrap.appendChild(actBtn('◀ Volver','',()=>{ b.state='menu'; renderBattleMenu(); }));
   } else if(b.state==='switch'){
     Game.party.forEach((c,i)=>{
       const sp = SPECIES_BY_ID[c.speciesId];
       const dead = c.hp<=0;
       wrap.appendChild(actBtn((dead?'💀 ':'🧊 ')+sp.name, `Nv.${c.level} · ${Math.round(c.hp)} PS`, ()=>{ if(dead || i===b.playerIdx) return; b.playerIdx=i; b.state='menu'; renderBattleMenu(); renderBattleHud(); logMsg(`Cambias a ${sp.name}.`); }));
     });
-    wrap.appendChild(actBtn('◀ Volver','',()=>{ b.state='menu'; renderBattleMenu(); }, true));
+    wrap.appendChild(actBtn('◀ Volver','',()=>{ b.state='menu'; renderBattleMenu(); }));
   } else if(b.state==='capture'){
     SPHERE_IDS.forEach(id=>{
       const qty = itemCount(id);
@@ -1551,20 +1574,19 @@ function renderBattleMenu(){
       const el = actBtn(ITEMS[id].name, `x${qty} · Captura estimada ${fmtPct(pct)}`, ()=>{ if(qty<=0){ Audio_.error(); toast('No te quedan '+ITEMS[id].name+'.'); return;} openCaptureConfirm(id); });
       wrap.appendChild(el);
     });
-    wrap.appendChild(actBtn('◀ Volver','',()=>{ b.state='menu'; renderBattleMenu(); }, true));
+    wrap.appendChild(actBtn('◀ Volver','',()=>{ b.state='menu'; renderBattleMenu(); }));
   } else if(b.state==='captureConfirm'){
     const id = b.pendingSphere; const it = ITEMS[id]; const pct = captureChance(id, b.enemy);
-    wrap.style.gridTemplateColumns = '1fr';
     const info = document.createElement('div');
-    info.className = 'actbtn wide';
-    info.style.cssText = 'cursor:default;flex-direction:column;padding:14px;';
+    info.className = 'actbtn';
+    info.style.cssText = 'cursor:default;flex-direction:column;padding:10px;';
     const col = pct>0.6?'var(--good)':pct>0.3?'var(--accent2)':'var(--danger)';
-    info.innerHTML = `<div style="font-size:14px;">${it.name} contra ${nameOf(b.enemy.speciesId)}</div>
-      <div style="font-size:32px;font-weight:800;color:${col};margin:6px 0;">${fmtPct(pct)}</div>
+    info.innerHTML = `<div style="font-size:13px;">${it.name} contra ${nameOf(b.enemy.speciesId)}</div>
+      <div style="font-size:28px;font-weight:800;color:${col};margin:4px 0;">${fmtPct(pct)}</div>
       <div class="sub">Probabilidad de captura (vida restante, rareza, nivel y calidad de esfera)</div>`;
     wrap.appendChild(info);
-    wrap.appendChild(actBtn('🎯 Lanzar esfera','¡Inténtalo!',()=>attemptCapture(id), true));
-    wrap.appendChild(actBtn('◀ Cancelar','',()=>{ b.state='capture'; renderBattleMenu(); }, true));
+    wrap.appendChild(actBtn('🎯 Lanzar esfera','¡Inténtalo!',()=>attemptCapture(id)));
+    wrap.appendChild(actBtn('◀ Cancelar','',()=>{ b.state='capture'; renderBattleMenu(); }));
   }
 }
 function openItemMenu(){ Game.battle.state='items'; renderBattleMenu(); }
